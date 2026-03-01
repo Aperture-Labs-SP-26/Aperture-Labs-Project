@@ -36,3 +36,4 @@ class ProjectRead(ProjectBase):
 class UploadResponse(BaseModel):
     filename: str
     project_id: uuid.UUID
+    object_key: str

@@ -138,17 +138,7 @@ The API will be available at:
 
 ## Running Tests
 
-## Setup
-
-Start the test database (make sure docker desktop is running):
-
-```bash
-make test-up
-```
-
-## Running Tests
-
-Run the full suite:
+Run the full suite (from root directory of the project):
 ```bash
 make test
 ```
