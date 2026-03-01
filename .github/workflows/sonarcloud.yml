@@ -13,10 +13,26 @@ permissions:
 jobs:
   sonarcloud:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history for better analysis
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -30,13 +46,15 @@ jobs:
 
       - name: Run backend tests with coverage
         env:
+          PYTHONPATH: backend
           DATABASE_URL: "postgresql://test:test@localhost:5432/test_db"
           SECRET_KEY: "test-secret-key-for-ci-only"
-          MINIO_ENDPOINT: "localhost:9000"
-          MINIO_ACCESS_KEY: "test-access-key"
-          MINIO_SECRET_KEY: "test-secret-key"
-          MINIO_BUCKET_DESIGNS: "test-designs"
-          MINIO_BUCKET_IMAGES: "test-images"
+          MINIO_ENDPOINT: localhost:9000
+          MINIO_ACCESS_KEY: minioadmin
+          MINIO_SECRET_KEY: minioadmin
+          MINIO_BUCKET_DESIGNS: designs
+          MINIO_BUCKET_IMAGES: images
+          MINIO_USE_SSL: false
           DETECTION_WEBHOOK_SECRET: "test-webhook-secret"
         run: |
           cd backend
