@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 
 from db.models import User
 from schemas.users import UserCreate, UserUpdate
-from core.security import hash_password
 from core import exceptions
 
 
@@ -17,7 +16,7 @@ def create_user(db: Session, payload: UserCreate) -> User:
     user = User(
         id=uuid.uuid4(),
         email=payload.email,
-        password_hash=hash_password(payload.password),
+        password_hash=payload.password,
     )
     db.add(user)
     db.commit()
@@ -49,7 +48,7 @@ def update_user(db: Session, user_id: uuid.UUID, payload: UserUpdate) -> User:
         user.email = payload.email
 
     if payload.password is not None:
-        user.password_hash = hash_password(payload.password)
+        user.password_hash = payload.password
 
     user.updated_at = datetime.utcnow()
     db.commit()

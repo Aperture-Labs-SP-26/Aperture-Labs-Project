@@ -131,3 +131,39 @@ The API will be available at:
 - **API:** `http://127.0.0.1:8000`
 - **Swagger docs:** `http://127.0.0.1:8000/docs`
 - **MinIO console:** `http://localhost:9001` (login: `minioadmin` / `minioadmin`)
+
+## Running Tests
+
+## Setup
+
+Start the test database (make sure docker desktop is running):
+
+```bash
+make test-up
+```
+
+## Running Tests
+
+Run the full suite:
+```bash
+make test
+```
+
+Run by type:
+```bash
+make test-unit   # unit tests only
+make test-api    # api tests only
+```
+
+Run a specific file or test directly:
+```bash
+cd backend && pytest tests/unit/services/test_auth_service.py -v
+cd backend && pytest tests/unit/services/test_auth_service.py::test_login_returns_success -v -s
+```
+
+## Teardown
+
+Stop the test database when done:
+```bash
+make test-down
+```
