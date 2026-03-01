@@ -1,73 +1,61 @@
-"""
-Unit tests for auth_service.login and auth_service.logout.
-
-These tests call the service layer directly against a real test database.
-No HTTP layer is involved — that lives in tests/api/test_auth.py.
-"""
-
-from unittest.mock import MagicMock
+"""Tests for auth_service."""
 import uuid
-
 import pytest
+from unittest.mock import MagicMock
 
-from services import auth_service
+from core import exceptions
 from schemas.auth import LoginRequest
-
+from services import auth_service
 
 pytestmark = pytest.mark.unit
 
-def test_login_success():
-    """Test successful login returns user info."""
 
-    test_pw = "fake-test-pw-123"  # noqa: S105
-    mock_user = MagicMock()
-    mock_user.id = uuid.uuid4()
-    mock_user.email = "test@example.com"
-    mock_user.password_hash = test_pw
+class TestAuthService:
 
-    mock_db = MagicMock()
-    mock_db.query.return_value.filter.return_value.first.return_value = mock_user
+    def test_login_success(self):
+        """Test successful login returns user info."""
+        test_pw = "fake-test-pw-123"  # noqa: S105
+        mock_user = MagicMock()
+        mock_user.id = uuid.uuid4()
+        mock_user.email = "test@example.com"
+        mock_user.password_hash = test_pw
 
-    payload = LoginRequest(email="test@example.com", password=test_pw)
-    result = auth_service.login(mock_db, payload)
+        mock_db = MagicMock()
+        mock_db.query.return_value.filter.return_value.first.return_value = mock_user
 
-    assert result.success is True
-    assert result.user.email == "test@example.com"
+        payload = LoginRequest(email="test@example.com", password=test_pw)
+        result = auth_service.login(mock_db, payload)
 
-def test_login_user_not_found():
-    """Test login fails when user not found."""
-    from services import auth_service
+        assert result.success is True
+        assert result.user.email == "test@example.com"
 
-    mock_db = MagicMock()
-    mock_db.query.return_value.filter.return_value.first.return_value = None
+    def test_login_user_not_found(self):
+        """Test login fails when user not found."""
+        mock_db = MagicMock()
+        mock_db.query.return_value.filter.return_value.first.return_value = None
 
-    payload = LoginRequest(email="notfound@example.com", password="fake-test-pw-123")  # noqa: S105  # NOSONAR
-    result = auth_service.login(mock_db, payload)
+        payload = LoginRequest(email="notfound@example.com", password="fake-test-pw-123")  # noqa: S105
+        result = auth_service.login(mock_db, payload)
 
-    assert result.success is False
-    assert "Invalid" in result.message
+        assert result.success is False
+        assert "Invalid" in result.message
 
-def test_login_wrong_password():
-    """Test login fails with wrong password."""
-    from services import auth_service
+    def test_login_wrong_password(self):
+        """Test login fails with wrong password."""
+        mock_user = MagicMock()
+        mock_user.id = uuid.uuid4()
+        mock_user.email = "test@example.com"
+        mock_user.password_hash = "correct-fake-pw"  # noqa: S105
 
-    mock_user = MagicMock()
-    mock_user.id = uuid.uuid4()
-    mock_user.email = "test@example.com"
-    mock_user.password_hash = "correct-fake-pw"  # noqa: S105  # NOSONAR
+        mock_db = MagicMock()
+        mock_db.query.return_value.filter.return_value.first.return_value = mock_user
 
-    mock_db = MagicMock()
-    mock_db.query.return_value.filter.return_value.first.return_value = mock_user
+        payload = LoginRequest(email="test@example.com", password="wrong-fake-pw")  # noqa: S105
+        result = auth_service.login(mock_db, payload)
 
-    payload = LoginRequest(email="test@example.com", password="wrong-fake-pw")  # noqa: S105  # NOSONAR
-    result = auth_service.login(mock_db, payload)
+        assert result.success is False
 
-    assert result.success is False
-
-def test_logout():
-    """Test logout completes without error."""
-    from services import auth_service
-
-    mock_db = MagicMock()
-    # Should not raise
-    auth_service.logout(mock_db)
+    def test_logout(self):
+        """Test logout completes without error."""
+        mock_db = MagicMock()
+        auth_service.logout(mock_db)

@@ -27,3 +27,7 @@ Thumbs.db
 
 #Figma
 AI Anomaly Detection Tool
+
+# SonarQube
+coverage.xml
+.coverage
