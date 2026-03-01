@@ -46,7 +46,6 @@ jobs:
 
       - name: Run backend tests with coverage
         env:
-          PYTHONPATH: backend
           DATABASE_URL: "postgresql://test:test@localhost:5432/test_db"
           SECRET_KEY: "test-secret-key-for-ci-only"
           MINIO_ENDPOINT: localhost:9000
@@ -58,6 +57,7 @@ jobs:
           DETECTION_WEBHOOK_SECRET: "test-webhook-secret"
         run: |
           cd backend
+          export PYTHONPATH=$(pwd)
           pytest --cov=. --cov-report=xml:coverage.xml --cov-report=term-missing
 
       - name: SonarCloud Scan
