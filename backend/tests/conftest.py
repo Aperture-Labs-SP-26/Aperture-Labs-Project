@@ -1,5 +1,4 @@
 import os
-import uuid
 import pytest
 
 # Set env vars before any app imports so pydantic-settings
