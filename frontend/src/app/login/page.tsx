@@ -6,8 +6,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Lock, User, Activity, Moon, Sun } from "lucide-react";
+import { Lock, User, Activity, Moon, Sun, AlertCircle } from "lucide-react";
 import { useApp } from "@/app/AppProvider";
+import { login } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,19 +19,26 @@ export default function LoginPage() {
     const { theme, setCurrentProject, toggleTheme } = useApp();
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
+    const [error, setError] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
 
     // Ensure there's no selected project while on the login page.
     useEffect(() => {
         setCurrentProject(null);
     }, [setCurrentProject]);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // TODO: Replace with actual authentication API call
-        // Mock authentication - in production, this would validate credentials
-        if (username && password) {
-            // Navigate to projects page after successful login
+        setError(null);
+        if (!username.trim() || !password) return;
+        setIsLoading(true);
+        try {
+            await login({ username: username.trim(), password });
             router.push("/projects");
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Login failed");
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -100,15 +108,21 @@ export default function LoginPage() {
                                 </FormItem>
                             </FormField>
 
-                            <Button type="submit" className="w-full">
-                                Sign In
+                            {error && (
+                                <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm mb-4">
+                                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                                    <span>{error}</span>
+                                </div>
+                            )}
+                            <Button type="submit" className="w-full" disabled={isLoading}>
+                                {isLoading ? "Signing in..." : "Sign In"}
                             </Button>
                         </Form>
                     </CardContent>
                     <CardFooter className="flex-col">
                         <div className="w-full pt-4 border-t border-border">
                             <p className="text-xs text-muted-foreground text-center">
-                                Demo credentials: Any username and password
+                                Demo credentials: username <code>test</code>, password <code>test</code>
                             </p>
                         </div>
                     </CardFooter>

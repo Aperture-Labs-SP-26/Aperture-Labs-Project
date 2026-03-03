@@ -4,51 +4,67 @@
  * Page for creating new projects and viewing all projects.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Plus, X, ArrowRight, FolderOpen } from "lucide-react";
+import { FileText, Plus, X, ArrowRight, FolderOpen, AlertCircle } from "lucide-react";
 import { useApp, Project } from "@/app/AppProvider";
+import { listProjects, createProject, uploadDesignSpec, API_BASE_URL } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-// TODO: Replace with API call to fetch projects
-// This is dummy data for development
-const DUMMY_PROJECTS = [
-    {
-        id: "proj-1",
-        name: "Circuit Board QA - Model XR-500",
-        createdAt: new Date("2024-01-15"),
-        updatedAt: new Date("2024-01-20"),
-        designSpecs: ["spec-1.pdf", "spec-2.pdf"],
-    },
-    {
-        id: "proj-2",
-        name: "Mobile Device Testing - Series 7",
-        createdAt: new Date("2024-02-01"),
-        updatedAt: new Date("2024-02-10"),
-        designSpecs: ["mobile-spec.pdf"],
-    },
-    {
-        id: "proj-3",
-        name: "Automotive Component Inspection",
-        createdAt: new Date("2024-02-15"),
-        updatedAt: new Date("2024-02-18"),
-        designSpecs: ["auto-spec-1.pdf", "auto-spec-2.pdf", "auto-spec-3.pdf"],
-    },
-];
+function apiProjectToAppProject(p: {
+    id: string;
+    name: string;
+    created_at: string;
+    design_specs: Array<{ filename: string }>;
+}): Project & { createdAt: string; updatedAt: string; designSpecs: string[] } {
+    return {
+        id: p.id,
+        name: p.name,
+        createdAt: typeof p.created_at === "string" ? p.created_at : new Date(p.created_at).toISOString(),
+        updatedAt: typeof p.created_at === "string" ? p.created_at : new Date(p.created_at).toISOString(),
+        designSpecs: p.design_specs?.map((s) => s.filename) ?? [],
+    };
+}
 
 export default function ProjectsPage() {
     const router = useRouter();
     const { setCurrentProject } = useApp();
 
-    // New project form fields
+    const [existingProjects, setExistingProjects] = useState<
+        Array<Project & { createdAt: string; updatedAt: string; designSpecs: string[] }>
+    >([]);
+    const [isLoadingProjects, setIsLoadingProjects] = useState(true);
+    const [projectsError, setProjectsError] = useState<string | null>(null);
+
     const [projectName, setProjectName] = useState<string>("");
     const [designSpecs, setDesignSpecs] = useState<File[]>([]);
-    // flag to show new project form
-    const [showNewProject, setShowNewProject] = useState<boolean>(DUMMY_PROJECTS.length === 0);
+    const [showNewProject, setShowNewProject] = useState<boolean>(false);
+    const [isCreating, setIsCreating] = useState(false);
+    const [createError, setCreateError] = useState<string | null>(null);
 
-    // TODO: Replace with API call to fetch projects
-    const existingProjects = DUMMY_PROJECTS;
+    useEffect(() => {
+        let cancelled = false;
+        listProjects()
+            .then((res) => {
+                if (!cancelled) {
+                    setExistingProjects(res.projects.map(apiProjectToAppProject));
+                }
+            })
+            .catch((err) => {
+                if (!cancelled) {
+                    setProjectsError(err instanceof Error ? err.message : "Failed to load projects");
+                }
+            })
+            .finally(() => {
+                if (!cancelled) setIsLoadingProjects(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    const hasProjects = existingProjects.length > 0;
 
     const handleDesignSpecUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
@@ -67,35 +83,66 @@ export default function ProjectsPage() {
         setDesignSpecs((prev) => prev.filter((_, i) => i !== index));
     };
 
-    const handleCreateProject = () => {
-        if (projectName.trim() && designSpecs.length > 0) {
-            const newProject: Project & {
-                createdAt: string;
-                updatedAt: string;
-                designSpecs: string[];
-            } = {
-                id: `proj-${Date.now()}`,
-                name: projectName.trim(),
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                designSpecs: designSpecs.map((file) => file.name),
-            };
-
-            // TODO: Replace with API call to create project
-            // For now, just set it in context and navigate
-            setCurrentProject(newProject as unknown as Project);
+    const handleCreateProject = async () => {
+        if (!projectName.trim() || designSpecs.length === 0) return;
+        setIsCreating(true);
+        setCreateError(null);
+        try {
+            const created = await createProject(projectName.trim());
+            const uploadedFilenames: string[] = [];
+            for (const file of designSpecs) {
+                try {
+                    await uploadDesignSpec(created.id, file);
+                    uploadedFilenames.push(file.name);
+                } catch (e) {
+                    console.warn("Design spec upload failed:", file.name, e);
+                }
+            }
+            if (uploadedFilenames.length < designSpecs.length) {
+                alert(
+                    "Project created, but some design specs failed to upload. Ensure MinIO is running (docker compose up -d)."
+                );
+            }
+            const appProject = apiProjectToAppProject({
+                ...created,
+                design_specs: uploadedFilenames.map((f) => ({ filename: f, object_key: "", uploaded_at: "" })),
+            });
+            setCurrentProject(appProject as unknown as Project);
             router.push("/inspect");
+        } catch (err) {
+            setCreateError(err instanceof Error ? err.message : "Failed to create project");
+        } finally {
+            setIsCreating(false);
         }
     };
 
-    const handleSelectProject = (project: (typeof DUMMY_PROJECTS)[0]) => {
+    const handleSelectProject = (
+        project: Project & { createdAt: string; updatedAt: string; designSpecs: string[] }
+    ) => {
         setCurrentProject(project as unknown as Project);
         router.push("/inspect");
     };
 
+    const showList = !showNewProject && hasProjects;
+    const showCreateForm = showNewProject || (!hasProjects && !isLoadingProjects);
+
     return (
         <div className="flex-1 flex flex-col bg-slate-50 dark:bg-zinc-950 transition-colors overflow-hidden">
-            {!showNewProject && existingProjects.length > 0 ? (
+            {isLoadingProjects ? (
+                <div className="flex-1 flex items-center justify-center">
+                    <p className="text-slate-600 dark:text-zinc-400">Loading projects...</p>
+                </div>
+            ) : projectsError ? (
+                <div className="flex-1 flex flex-col items-center justify-center p-8">
+                    <div className="flex items-center gap-2 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 max-w-md">
+                        <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                        <p>{projectsError}</p>
+                    </div>
+                    <p className="mt-4 text-sm text-slate-500 dark:text-zinc-500">
+                        Ensure the backend is running at {API_BASE_URL}.
+                    </p>
+                </div>
+            ) : showList ? (
                 <div className="flex-1 flex flex-col overflow-hidden">
                     <div className="max-w-[1200px] w-full mx-auto px-6 pt-6 pb-2 flex-shrink-0">
                         <div className="text-center mb-8">
@@ -112,7 +159,12 @@ export default function ProjectsPage() {
                                 <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
                                     Your Projects
                                 </h2>
-                                <Button variant="default" size="lg" className="rounded-lg" onClick={() => setShowNewProject(true)}>
+                                <Button
+                                    variant="default"
+                                    size="lg"
+                                    className="rounded-lg"
+                                    onClick={() => setShowNewProject(true)}
+                                >
                                     <Plus /> Create New Project
                                 </Button>
                             </div>
@@ -147,7 +199,7 @@ export default function ProjectsPage() {
                                                     </p>
                                                     <p className="text-xs text-slate-400 dark:text-zinc-600">
                                                         Created{" "}
-                                                        {project.createdAt.toLocaleDateString(
+                                                        {new Date(project.createdAt).toLocaleDateString(
                                                             "en-US",
                                                             {
                                                                 month: "short",
@@ -166,7 +218,7 @@ export default function ProjectsPage() {
                         </div>
                     </div>
                 </div>
-            ) : (
+            ) : showCreateForm ? (
                 <main className="flex-1 overflow-y-auto">
                     <div className="max-w-[1200px] w-full mx-auto px-6 pt-6 pb-2 flex-shrink-0">
                         <div className="text-center mb-8">
@@ -255,22 +307,34 @@ export default function ProjectsPage() {
                                     )}
                                 </div>
 
+                                {createError && (
+                                    <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-sm mb-4">
+                                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                                        <span>{createError}</span>
+                                    </div>
+                                )}
                                 {/* Create Project Button */}
                                 <button
                                     onClick={handleCreateProject}
-                                    disabled={!projectName.trim() || designSpecs.length === 0}
+                                    disabled={
+                                        !projectName.trim() ||
+                                        designSpecs.length === 0 ||
+                                        isCreating
+                                    }
                                     className={cn(
                                         "w-full font-semibold py-4 px-6 rounded-xl transition-all disabled:cursor-not-allowed shadow-sm mt-6",
-                                        projectName.trim() && designSpecs.length > 0
+                                        projectName.trim() &&
+                                        designSpecs.length > 0 &&
+                                        !isCreating
                                             ? "bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 hover:dark:bg-blue-600 text-white"
                                             : "bg-slate-300 dark:bg-zinc-800 text-slate-500 dark:text-zinc-600",
                                     )}
                                 >
-                                    Create Project
+                                    {isCreating ? "Creating..." : "Create Project"}
                                 </button>
 
                                 {/* Back to Projects List */}
-                                {existingProjects.length > 0 && (
+                                {hasProjects && (
                                     <button
                                         onClick={() => setShowNewProject(false)}
                                         className="w-full text-sm text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white mt-4 pt-2 transition-colors"
@@ -282,7 +346,7 @@ export default function ProjectsPage() {
                         </div>
                     </div>
                 </main>
-            )}
+            ) : null}
         </div>
     );
 }
