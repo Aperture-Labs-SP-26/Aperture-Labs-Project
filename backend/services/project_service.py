@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
@@ -76,8 +76,8 @@ def delete_project(db: Session, project_id: uuid.UUID) -> None:
     if project.deleted_at is not None:
         raise exceptions.InvalidStateTransition("Project is already deleted")
 
-    project.deleted_at = datetime.utcnow()
-    project.updated_at = datetime.utcnow()
+    project.deleted_at = datetime.now(timezone.utc)
+    project.updated_at = datetime.now(timezone.utc)
     db.commit()
 
 
@@ -87,8 +87,8 @@ def archive_project(db: Session, project_id: uuid.UUID) -> Project:
     if project.archived_at is not None:
         raise exceptions.InvalidStateTransition("Project is already archived")
 
-    project.archived_at = datetime.utcnow()
-    project.updated_at = datetime.utcnow()
+    project.archived_at = datetime.now(timezone.utc)
+    project.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(project)
     return project

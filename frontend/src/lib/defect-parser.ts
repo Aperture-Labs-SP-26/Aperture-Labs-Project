@@ -52,8 +52,9 @@ export function parseDefectsFromResponse(response: string): Defect[] {
             (lower.includes("location:") || lower.includes("recommended action:"))
         ) {
             const extra = line.replace(/^[\s\S]*?:\s*/i, "").trim();
-            if (extra && defects[defects.length - 1]) {
-                defects[defects.length - 1].description += ` — ${extra}`;
+            const last = defects.at(-1);
+            if (extra && last) {
+                last.description += ` — ${extra}`;
             }
             continue;
         }

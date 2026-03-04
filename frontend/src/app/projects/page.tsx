@@ -4,13 +4,12 @@
  * Page for creating new projects and viewing all projects.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
     FileText,
     Plus,
     X,
-    ArrowRight,
     FolderOpen,
     Archive,
     Trash2,
@@ -37,11 +36,22 @@ import DesignSpecPreview from "@/components/DesignSpecPreview";
 function apiProjectToAppProject(
     p: ApiProject,
     designSpecs: string[] = [],
-): Project & { createdAt: string; updatedAt: string; designSpecs: string[] } {
+): Project & {
+    createdAt: string;
+    updatedAt: string;
+    designSpecs: string[];
+    archivedAt: string | null;
+} {
     const created =
         typeof p.created_at === "string" ? p.created_at : new Date(p.created_at).toISOString();
     const updated =
         typeof p.updated_at === "string" ? p.updated_at : new Date(p.updated_at).toISOString();
+    const archivedAt =
+        p.archived_at == null
+            ? null
+            : typeof p.archived_at === "string"
+              ? p.archived_at
+              : new Date(p.archived_at).toISOString();
     return {
         id: p.id,
         name: p.name,
@@ -49,6 +59,7 @@ function apiProjectToAppProject(
         createdAt: created,
         updatedAt: updated,
         designSpecs,
+        archivedAt,
     };
 }
 
@@ -62,10 +73,18 @@ export default function ProjectsPage() {
     }, [hasRestoredFromStorage, user, router]);
 
     const [existingProjects, setExistingProjects] = useState<
-        Array<Project & { createdAt: string; updatedAt: string; designSpecs: string[] }>
+        Array<
+            Project & {
+                createdAt: string;
+                updatedAt: string;
+                designSpecs: string[];
+                archivedAt: string | null;
+            }
+        >
     >([]);
     const [isLoadingProjects, setIsLoadingProjects] = useState(true);
     const [projectsError, setProjectsError] = useState<string | null>(null);
+    const [projectFilter, setProjectFilter] = useState<"active" | "archived" | "all">("active");
 
     const [projectName, setProjectName] = useState<string>("");
     const [designSpecs, setDesignSpecs] = useState<File[]>([]);
@@ -86,7 +105,7 @@ export default function ProjectsPage() {
         setIsLoadingProjects(true);
         setProjectsError(null);
         try {
-            const projects = await listProjects();
+            const projects = await listProjects(true);
             const withDesigns = await Promise.all(
                 projects.map(async (p) => {
                     try {
@@ -117,6 +136,13 @@ export default function ProjectsPage() {
     }, []);
 
     const hasProjects = existingProjects.length > 0;
+
+    const filteredProjects = useMemo(() => {
+        if (projectFilter === "active") return existingProjects.filter((p) => p.archivedAt == null);
+        if (projectFilter === "archived")
+            return existingProjects.filter((p) => p.archivedAt != null);
+        return existingProjects;
+    }, [existingProjects, projectFilter]);
 
     const handleConfirmAction = async () => {
         if (!confirmAction) return;
@@ -184,7 +210,12 @@ export default function ProjectsPage() {
     };
 
     const handleSelectProject = (
-        project: Project & { createdAt: string; updatedAt: string; designSpecs: string[] },
+        project: Project & {
+            createdAt: string;
+            updatedAt: string;
+            designSpecs: string[];
+            archivedAt: string | null;
+        },
     ) => {
         setCurrentProject(project as unknown as Project);
         router.push("/inspect");
@@ -234,6 +265,24 @@ export default function ProjectsPage() {
                                     <Plus /> Create New Project
                                 </Button>
                             </div>
+                            {/* Project filter: active (default) | archived | all */}
+                            <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-zinc-800 w-fit mb-6">
+                                {(["active", "archived", "all"] as const).map((filter) => (
+                                    <button
+                                        key={filter}
+                                        type="button"
+                                        onClick={() => setProjectFilter(filter)}
+                                        className={cn(
+                                            "px-3 py-1.5 rounded-md text-sm font-medium transition-colors capitalize",
+                                            projectFilter === filter
+                                                ? "bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm"
+                                                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white",
+                                        )}
+                                    >
+                                        {filter}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
 
@@ -242,7 +291,7 @@ export default function ProjectsPage() {
                         <div className="max-w-[1200px] w-full mx-auto px-6 pb-8">
                             <div className="max-w-[800px] mx-auto">
                                 <div className="space-y-3">
-                                    {existingProjects.map((project) => {
+                                    {filteredProjects.map((project) => {
                                         const specCount = project.designSpecs?.length || 0;
                                         const isExpanded = expandedSpecs.has(project.id);
                                         return (
@@ -260,6 +309,11 @@ export default function ProjectsPage() {
                                                             <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
                                                                 {project.name}
                                                             </h3>
+                                                            {project.archivedAt != null && (
+                                                                <span className="text-xs font-medium px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200">
+                                                                    Archived
+                                                                </span>
+                                                            )}
                                                         </div>
                                                         <p className="text-xs text-slate-400 dark:text-zinc-600">
                                                             Created{" "}

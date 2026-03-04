@@ -19,11 +19,7 @@ import {
     Info,
 } from "lucide-react";
 import { useApp } from "@/app/AppProvider";
-import {
-    getSubmission,
-    listAnomalies,
-    getImageUrl,
-} from "@/lib/api";
+import { getSubmission, listAnomalies, getImageUrl, type ApiSubmission } from "@/lib/api";
 import {
     getInspection,
     toSubmissions,
@@ -80,6 +76,54 @@ function getSeverityIcon(severity: string) {
     }
 }
 
+const API_SUBMISSION_RUNNING_STATUSES = ["running", "queued"];
+
+function buildResultFromApi(
+    sub: ApiSubmission,
+    anomalies: Awaited<ReturnType<typeof listAnomalies>>,
+    currentProject: { id: string; name: string; designSpecs?: string[] },
+    imageUrl: string,
+): InspectionResult {
+    const photoName = sub.image_id.split("/").pop() ?? "image.png";
+    const defects: Defect[] = anomalies.map((a, i) => ({
+        id: a.id,
+        location: { x: 50, y: 30 + ((i * 20) % 50) },
+        severity: normalizeSeverityToDefect(a.severity),
+        description: a.description ?? a.label,
+    }));
+    const analysis =
+        anomalies
+            .map((a) => a.description)
+            .filter(Boolean)
+            .join("\n\n") || "No detailed analysis.";
+    const isRunning = API_SUBMISSION_RUNNING_STATUSES.includes(sub.status);
+    const passFail = isRunning ? "pending" : sub.pass_fail === "unknown" ? "fail" : sub.pass_fail;
+    const submission: InspectionSubmission = {
+        id: sub.id,
+        timestamp: sub.submitted_at,
+        productPhoto: imageUrl,
+        photoName,
+        designSpec: currentProject.designSpecs ?? [],
+        status: passFail as "pass" | "fail" | "pending",
+        defects,
+        analysis,
+    };
+    const inspectionResult: InspectionResult = {
+        id: `api-${sub.id}`,
+        imageUrl,
+        response: analysis,
+        timestamp: sub.submitted_at,
+        projectId: sub.project_id,
+        projectName: currentProject.name,
+        submissions: [submission],
+    };
+    if (isRunning) {
+        inspectionResult.status = "running";
+        inspectionResult.progress = 0;
+    }
+    return inspectionResult;
+}
+
 export default function InspectResultPage() {
     const params = useParams();
     const router = useRouter();
@@ -117,10 +161,7 @@ export default function InspectResultPage() {
             if (id.startsWith("api-") && currentProject?.id) {
                 const submissionId = id.slice(4);
                 const projectId = currentProject.id;
-                Promise.all([
-                    getSubmission(projectId, submissionId),
-                    listAnomalies(submissionId),
-                ])
+                Promise.all([getSubmission(projectId, submissionId), listAnomalies(submissionId)])
                     .then(async ([sub, anomalies]) => {
                         if (!sub) {
                             setNotFound(true);
@@ -129,38 +170,15 @@ export default function InspectResultPage() {
                         let imageUrl = "";
                         try {
                             imageUrl = await getImageUrl(sub.image_id);
-                        } catch { /* ignore */ }
-                        const photoName = sub.image_id.split("/").pop() ?? "image.png";
-                        const defects: Defect[] = anomalies.map((a, i) => ({
-                            id: a.id,
-                            location: { x: 50, y: 30 + (i * 20) % 50 },
-                            severity: normalizeSeverityToDefect(a.severity),
-                            description: a.description ?? a.label,
-                        }));
-                        const analysis = anomalies
-                            .map((a) => a.description)
-                            .filter(Boolean)
-                            .join("\n\n") || "No detailed analysis.";
-                        const passFail = sub.pass_fail === "unknown" ? "fail" : sub.pass_fail;
-                        const submission: InspectionSubmission = {
-                            id: sub.id,
-                            timestamp: sub.submitted_at,
-                            productPhoto: imageUrl,
-                            photoName,
-                            designSpec: currentProject.designSpecs ?? [],
-                            status: passFail,
-                            defects,
-                            analysis,
-                        };
-                        const inspectionResult: InspectionResult = {
-                            id: `api-${sub.id}`,
+                        } catch {
+                            /* ignore */
+                        }
+                        const inspectionResult = buildResultFromApi(
+                            sub,
+                            anomalies ?? [],
+                            currentProject,
                             imageUrl,
-                            response: analysis,
-                            timestamp: sub.submitted_at,
-                            projectId: sub.project_id,
-                            projectName: currentProject.name,
-                            submissions: [submission],
-                        };
+                        );
                         setResult(inspectionResult);
                     })
                     .catch(() => setNotFound(true));
@@ -192,13 +210,72 @@ export default function InspectResultPage() {
                 setNotFound(false);
             }
         };
-        window.addEventListener(INSPECTION_UPDATE_EVENT, onUpdate);
+        globalThis.addEventListener(INSPECTION_UPDATE_EVENT, onUpdate);
         return () => {
             clearTimeout(t1);
             clearTimeout(t2);
-            window.removeEventListener(INSPECTION_UPDATE_EVENT, onUpdate);
+            globalThis.removeEventListener(INSPECTION_UPDATE_EVENT, onUpdate);
         };
     }, [id, currentProject?.id, currentProject?.name, currentProject?.designSpecs]);
+
+    // Poll API when viewing an api- submission that is still running (e.g. seed analysis in background)
+    useEffect(() => {
+        if (
+            !id.startsWith("api-") ||
+            !currentProject?.id ||
+            !result ||
+            result.id !== id ||
+            !isInspectionRunning(result)
+        ) {
+            return;
+        }
+        const submissionId = id.slice(4);
+        const projectId = currentProject.id;
+        const poll = async () => {
+            try {
+                const [sub, anomalies] = await Promise.all([
+                    getSubmission(projectId, submissionId),
+                    listAnomalies(submissionId),
+                ]);
+                if (!sub || !API_SUBMISSION_RUNNING_STATUSES.includes(sub.status)) {
+                    if (sub) {
+                        let imageUrl = "";
+                        try {
+                            imageUrl = await getImageUrl(sub.image_id);
+                        } catch {
+                            /* ignore */
+                        }
+                        setResult(
+                            buildResultFromApi(sub, anomalies ?? [], currentProject, imageUrl),
+                        );
+                    }
+                    return true;
+                }
+                let imageUrl = "";
+                try {
+                    imageUrl = await getImageUrl(sub.image_id);
+                } catch {
+                    /* ignore */
+                }
+                setResult(buildResultFromApi(sub, anomalies ?? [], currentProject, imageUrl));
+            } catch {
+                // ignore
+            }
+            return false;
+        };
+        const interval = setInterval(async () => {
+            const done = await poll();
+            if (done) clearInterval(interval);
+        }, 2000);
+        return () => clearInterval(interval);
+    }, [
+        id,
+        currentProject?.id,
+        currentProject?.name,
+        currentProject?.designSpecs,
+        result?.id,
+        result?.status,
+    ]);
 
     const defaultTitle = "GLaDOS";
     useEffect(() => {
@@ -213,7 +290,7 @@ export default function InspectResultPage() {
     }, [result]);
 
     const handlePrintReport = () => {
-        window.print();
+        globalThis.print();
     };
 
     if (notFound) {
@@ -225,9 +302,8 @@ export default function InspectResultPage() {
                         Inspection Not Found
                     </h2>
                     <p className="text-slate-600 dark:text-zinc-400 mb-6">
-                        This inspection may have expired or the link is invalid.
-                        Results are stored in your session and are cleared when
-                        you close the browser.
+                        This inspection may have expired or the link is invalid. Results are stored
+                        in your session and are cleared when you close the browser.
                     </p>
                     <button
                         onClick={() => router.push("/inspect")}
@@ -261,7 +337,8 @@ export default function InspectResultPage() {
                         Analysis in progress
                     </h2>
                     <p className="text-slate-600 dark:text-zinc-400 mb-6">
-                        Analyzing {submissions.length} image{submissions.length !== 1 ? "s" : ""}. Results will appear here when complete.
+                        Analyzing {submissions.length} image{submissions.length !== 1 ? "s" : ""}.
+                        Results will appear here when complete.
                     </p>
                     <div className="w-full bg-slate-200 dark:bg-zinc-700 rounded-full h-3 overflow-hidden mb-2">
                         <div
@@ -269,9 +346,7 @@ export default function InspectResultPage() {
                             style={{ width: `${progress}%` }}
                         />
                     </div>
-                    <p className="text-sm text-slate-500 dark:text-zinc-500 mb-8">
-                        {progress}%
-                    </p>
+                    <p className="text-sm text-slate-500 dark:text-zinc-500 mb-8">{progress}%</p>
                     <button
                         onClick={() => router.push("/inspect")}
                         className="flex items-center gap-2 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors font-medium"
@@ -287,29 +362,19 @@ export default function InspectResultPage() {
     const designSpecs =
         (submissions[0]?.designSpec?.length ?? 0) > 0
             ? submissions[0].designSpec
-            : currentProject?.designSpecs ?? [];
+            : (currentProject?.designSpecs ?? []);
     const today = formatDateLong(result.timestamp);
-    const hasCritical = submissions.some((s) =>
-        s.defects.some((d) => d.severity === "critical")
-    );
-    const overallStatus = submissions.some((s) => s.status === "fail")
-        ? "FAIL"
-        : "PASS";
-    const totalDefects = submissions.reduce(
-        (sum, s) => sum + s.defects.length,
-        0
-    );
+    const overallStatus = submissions.some((s) => s.status === "fail") ? "FAIL" : "PASS";
+    const totalDefects = submissions.reduce((sum, s) => sum + s.defects.length, 0);
     const criticalCount = submissions.reduce(
-        (sum, s) =>
-            sum + s.defects.filter((d) => d.severity === "critical").length,
-        0
+        (sum, s) => sum + s.defects.filter((d) => d.severity === "critical").length,
+        0,
     );
-    const failWithoutDetails =
-        overallStatus === "FAIL" && totalDefects === 0;
+    const failWithoutDetails = overallStatus === "FAIL" && totalDefects === 0;
 
     return (
         <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-zinc-950 transition-colors overflow-x-auto overflow-y-auto print:!overflow-visible print:!block print:bg-white">
-                <div className="w-full max-w-[1200px] min-w-0 mx-auto flex-1 flex flex-col py-6 print:!block print:!max-w-full print:!w-full print:py-0">
+            <div className="w-full max-w-[1200px] min-w-0 mx-auto flex-1 flex flex-col py-6 print:!block print:!max-w-full print:!w-full print:py-0">
                 {/* Back Button */}
                 <button
                     onClick={() => router.push("/inspect")}
@@ -323,7 +388,16 @@ export default function InspectResultPage() {
                 {result.model && /mock|unavailable|offline/i.test(result.model) && (
                     <div className="print:hidden mb-6">
                         <Alert variant="warning">
-                            This result uses demo data because the AI service (Ollama / Qwen2.5-VL) was not reachable. For real detection, start Ollama: <code className="bg-amber-100 dark:bg-amber-500/20 px-1 rounded">ollama serve</code> and <code className="bg-amber-100 dark:bg-amber-500/20 px-1 rounded">ollama pull qwen2.5vl:7b</code>.
+                            This result uses demo data because the AI service (Ollama / Qwen2.5-VL)
+                            was not reachable. For real detection, start Ollama:{" "}
+                            <code className="bg-amber-100 dark:bg-amber-500/20 px-1 rounded">
+                                ollama serve
+                            </code>{" "}
+                            and{" "}
+                            <code className="bg-amber-100 dark:bg-amber-500/20 px-1 rounded">
+                                ollama pull qwen2.5vl:7b
+                            </code>
+                            .
                         </Alert>
                     </div>
                 )}
@@ -352,8 +426,7 @@ export default function InspectResultPage() {
                             <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                             <span className="text-sm font-semibold text-blue-900 dark:text-blue-100">
                                 Viewing {submissions.length} submission
-                                {submissions.length > 1 ? "s" : ""} in this
-                                report
+                                {submissions.length > 1 ? "s" : ""} in this report
                             </span>
                         </div>
                     </div>
@@ -405,7 +478,10 @@ export default function InspectResultPage() {
                                         Result: FAIL — no defect details available
                                     </p>
                                     <p className="text-sm text-amber-700 dark:text-amber-300/90">
-                                        This inspection was marked FAIL by the detection system, but no defect list or analysis text was returned. The result may come from an external submission or a run where detailed output was not stored.
+                                        This inspection was marked FAIL by the detection system, but
+                                        no defect list or analysis text was returned. The result may
+                                        come from an external submission or a run where detailed
+                                        output was not stored.
                                     </p>
                                 </div>
                             )}
@@ -414,8 +490,7 @@ export default function InspectResultPage() {
                             {designSpecs.length > 0 && (
                                 <div className="bg-slate-50 dark:bg-zinc-800 rounded-lg p-4 border border-slate-200 dark:border-zinc-700 mb-4">
                                     <p className="text-sm text-slate-600 dark:text-zinc-400 mb-3 font-semibold">
-                                        Design Specifications (
-                                        {designSpecs.length})
+                                        Design Specifications ({designSpecs.length})
                                     </p>
                                     <div className="max-h-40 overflow-y-auto pr-2 print:!max-h-none print:!overflow-visible">
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
@@ -494,26 +569,19 @@ export default function InspectResultPage() {
                                             </p>
                                         </div>
                                     )}
-                                    {(result.model ||
-                                        result.inferenceTimeMs != null) && (
+                                    {(result.model || result.inferenceTimeMs != null) && (
                                         <div className="bg-slate-50 dark:bg-zinc-800 rounded-lg p-4 border border-slate-200 dark:border-zinc-700 min-w-0 overflow-hidden">
                                             <p className="text-sm text-slate-600 dark:text-zinc-400 mb-1">
                                                 Model / Inference
                                             </p>
                                             <p className="text-sm font-medium text-slate-900 dark:text-white break-words">
-                                                {result.model && (
-                                                    <span>{result.model}</span>
-                                                )}
+                                                {result.model && <span>{result.model}</span>}
                                                 {result.model &&
-                                                    result.inferenceTimeMs !=
-                                                        null &&
+                                                    result.inferenceTimeMs != null &&
                                                     " · "}
-                                                {result.inferenceTimeMs !=
-                                                    null && (
+                                                {result.inferenceTimeMs != null && (
                                                     <span>
-                                                        {result.inferenceTimeMs.toFixed(
-                                                            0
-                                                        )}
+                                                        {result.inferenceTimeMs.toFixed(0)}
                                                         ms
                                                     </span>
                                                 )}
@@ -526,19 +594,13 @@ export default function InspectResultPage() {
 
                         {/* All Submissions */}
                         {submissions.map((submission, submissionIndex) => (
-                            <div
-                                key={submission.id}
-                                className={
-                                    submissionIndex > 0 ? "mt-12" : ""
-                                }
-                            >
+                            <div key={submission.id} className={submissionIndex > 0 ? "mt-12" : ""}>
                                 {/* Submission Header */}
                                 {submissions.length > 1 && (
                                     <div className="mb-6 pb-4 border-b border-slate-200 dark:border-zinc-700">
                                         <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
                                             <span className="text-blue-600 dark:text-blue-400">
-                                                Submission{" "}
-                                                {submissionIndex + 1}
+                                                Submission {submissionIndex + 1}
                                             </span>
                                             <span className="text-slate-400 dark:text-zinc-600">
                                                 /
@@ -570,93 +632,82 @@ export default function InspectResultPage() {
                                             alt={`Product ${submissionIndex + 1}`}
                                             className="w-full max-w-full h-auto object-contain"
                                         />
-                                        {submission.defects.map(
-                                            (defect: Defect) => (
+                                        {submission.defects.map((defect: Defect) => (
+                                            <div
+                                                key={defect.id}
+                                                className="absolute w-6 h-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer group"
+                                                style={{
+                                                    left: `${defect.location.x}%`,
+                                                    top: `${defect.location.y}%`,
+                                                }}
+                                            >
                                                 <div
-                                                    key={defect.id}
-                                                    className="absolute w-6 h-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer group"
-                                                    style={{
-                                                        left: `${defect.location.x}%`,
-                                                        top: `${defect.location.y}%`,
-                                                    }}
+                                                    className={`w-6 h-6 rounded-full border-2 flex items-center justify-center animate-pulse ${
+                                                        defect.severity === "critical"
+                                                            ? "bg-red-500 border-red-300"
+                                                            : defect.severity === "major"
+                                                              ? "bg-orange-500 border-orange-300"
+                                                              : "bg-yellow-500 border-yellow-300"
+                                                    }`}
                                                 >
-                                                    <div
-                                                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center animate-pulse ${
-                                                            defect.severity ===
-                                                            "critical"
-                                                                ? "bg-red-500 border-red-300"
-                                                                : defect.severity ===
-                                                                  "major"
-                                                                ? "bg-orange-500 border-orange-300"
-                                                                : "bg-yellow-500 border-yellow-300"
-                                                        }`}
-                                                    >
-                                                        <div className="w-2 h-2 bg-white rounded-full" />
-                                                    </div>
-                                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
-                                                        <div className="bg-slate-900 dark:bg-zinc-800 text-white text-xs rounded-lg py-2 px-3 whitespace-nowrap shadow-lg border border-slate-700 dark:border-zinc-700">
-                                                            <p className="font-semibold mb-1">
-                                                                {defect.id}
-                                                            </p>
-                                                            <p
-                                                                className={getSeverityColor(
-                                                                    defect.severity
-                                                                )}
-                                                            >
-                                                                {defect.severity.toUpperCase()}
-                                                            </p>
-                                                        </div>
+                                                    <div className="w-2 h-2 bg-white rounded-full" />
+                                                </div>
+                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
+                                                    <div className="bg-slate-900 dark:bg-zinc-800 text-white text-xs rounded-lg py-2 px-3 whitespace-nowrap shadow-lg border border-slate-700 dark:border-zinc-700">
+                                                        <p className="font-semibold mb-1">
+                                                            {defect.id}
+                                                        </p>
+                                                        <p
+                                                            className={getSeverityColor(
+                                                                defect.severity,
+                                                            )}
+                                                        >
+                                                            {defect.severity.toUpperCase()}
+                                                        </p>
                                                     </div>
                                                 </div>
-                                            )
-                                        )}
+                                            </div>
+                                        ))}
                                     </div>
                                 </section>
 
                                 {/* Detected Defects */}
                                 <section className="mb-8">
                                     <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-                                        Detected Defects (
-                                        {submission.defects.length})
+                                        Detected Defects ({submission.defects.length})
                                     </h3>
                                     {submission.defects.length > 0 ? (
                                         <div className="space-y-3">
-                                            {submission.defects.map(
-                                                (defect: Defect) => (
-                                                    <div
-                                                        key={defect.id}
-                                                        className="bg-slate-50 dark:bg-zinc-800 rounded-lg p-4 border border-slate-200 dark:border-zinc-700"
-                                                    >
-                                                        <div className="flex items-start justify-between mb-2">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="font-mono text-sm font-semibold text-slate-900 dark:text-white">
-                                                                    {defect.id}
-                                                                </span>
-                                                                <span
-                                                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${getSeverityBadgeColor(
-                                                                        defect.severity
-                                                                    )}`}
-                                                                >
-                                                                    {getSeverityIcon(
-                                                                        defect.severity
-                                                                    )}
-                                                                    {defect.severity.toUpperCase()}
-                                                                </span>
-                                                            </div>
-                                                            <span className="text-xs text-slate-500 dark:text-zinc-500">
-                                                                @ (
-                                                                {defect.location.x}
-                                                                %,{" "}
-                                                                {defect.location.y}
-                                                                %)
+                                            {submission.defects.map((defect: Defect) => (
+                                                <div
+                                                    key={defect.id}
+                                                    className="bg-slate-50 dark:bg-zinc-800 rounded-lg p-4 border border-slate-200 dark:border-zinc-700"
+                                                >
+                                                    <div className="flex items-start justify-between mb-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-mono text-sm font-semibold text-slate-900 dark:text-white">
+                                                                {defect.id}
+                                                            </span>
+                                                            <span
+                                                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${getSeverityBadgeColor(
+                                                                    defect.severity,
+                                                                )}`}
+                                                            >
+                                                                {getSeverityIcon(defect.severity)}
+                                                                {defect.severity.toUpperCase()}
                                                             </span>
                                                         </div>
-                                                        <p className="text-slate-700 dark:text-zinc-300">
-                                                            {defect.description}
-                                                        </p>
+                                                        <span className="text-xs text-slate-500 dark:text-zinc-500">
+                                                            @ ({defect.location.x}
+                                                            %, {defect.location.y}
+                                                            %)
+                                                        </span>
                                                     </div>
-                                                )
-                                            )}
+                                                    <p className="text-slate-700 dark:text-zinc-300">
+                                                        {defect.description}
+                                                    </p>
+                                                </div>
+                                            ))}
                                         </div>
                                     ) : (
                                         <div className="bg-green-50 dark:bg-green-500/10 rounded-lg p-4 border border-green-200 dark:border-green-500/20 text-center">
@@ -687,8 +738,7 @@ export default function InspectResultPage() {
                     {/* Report Footer */}
                     <div className="print-report-footer bg-slate-100 dark:bg-zinc-800 px-8 py-4 border-t border-slate-200 dark:border-zinc-700 print:px-4">
                         <p className="text-sm text-slate-600 dark:text-zinc-400 text-center">
-                            Generated by GLaDOS AI Anomaly Detection System •{" "}
-                            {today}
+                            Generated by GLaDOS AI Anomaly Detection System • {today}
                         </p>
                     </div>
                 </div>

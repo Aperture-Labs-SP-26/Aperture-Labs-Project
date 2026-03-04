@@ -10,9 +10,9 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Image, FileText, X } from "lucide-react";
+import { Image, FileDiff, FileText, X } from "lucide-react";
 import { useApp } from "@/app/AppProvider";
-import { detectFod, listDesignSpecs } from "@/lib/api";
+import { detectFod, listDesignSpecs, getInspectionPrompt } from "@/lib/api";
 import {
     saveInspectionPlaceholder,
     updateInspectionProgress,
@@ -66,6 +66,10 @@ export default function InspectPage() {
     const [previewUrls, setPreviewUrls] = useState<string[]>([]);
     const [startedMessage, setStartedMessage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [promptPopupOpen, setPromptPopupOpen] = useState(false);
+    const [promptContent, setPromptContent] = useState("");
+    const [promptLoading, setPromptLoading] = useState(false);
+    const [promptError, setPromptError] = useState<string | null>(null);
 
     const handleProductPhotoUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
@@ -135,9 +139,9 @@ RECOMMENDATION: Product does not meet manufacturing specifications. Immediate re
 
         // Build data URLs for placeholder thumbnails
         const placeholderSubs: Array<{ productPhoto: string; photoName: string }> = [];
-        for (let i = 0; i < productPhotos.length; i++) {
-            const dataUrl = await fileToDataUrl(productPhotos[i]);
-            placeholderSubs.push({ productPhoto: dataUrl, photoName: productPhotos[i].name });
+        for (const file of productPhotos) {
+            const dataUrl = await fileToDataUrl(file);
+            placeholderSubs.push({ productPhoto: dataUrl, photoName: file.name });
         }
 
         const placeholderId = saveInspectionPlaceholder({
@@ -172,7 +176,7 @@ RECOMMENDATION: Product does not meet manufacturing specifications. Immediate re
                 const productPhoto = placeholderSubs[i]?.productPhoto ?? (await fileToDataUrl(file));
 
                 try {
-                    const result = await detectFod(file);
+                    const result = await detectFod(file, currentProject?.id);
                     const defects =
                         result.defects && result.defects.length > 0
                             ? result.defects.map((d) => ({
@@ -249,6 +253,22 @@ RECOMMENDATION: Product does not meet manufacturing specifications. Immediate re
 
     const designSpecs = currentProject?.designSpecs ?? [];
 
+    const handleOpenPromptPopup = useCallback(() => {
+        setPromptPopupOpen(true);
+        setPromptError(null);
+        setPromptContent("");
+        setPromptLoading(true);
+        getInspectionPrompt(currentProject?.id ?? null)
+            .then((r) => {
+                setPromptContent(r.prompt);
+                setPromptLoading(false);
+            })
+            .catch((e) => {
+                setPromptError(e instanceof Error ? e.message : "Failed to load prompt");
+                setPromptLoading(false);
+            });
+    }, [currentProject?.id]);
+
     return (
         <div className="flex-1 flex flex-col bg-slate-50 dark:bg-zinc-950 transition-colors overflow-hidden">
             <div className="max-w-[700px] w-full mx-auto flex-1 flex flex-col py-6">
@@ -269,9 +289,9 @@ RECOMMENDATION: Product does not meet manufacturing specifications. Immediate re
                                     Design Specifications
                                 </p>
                                 <div className="space-y-1">
-                                    {designSpecs.map((spec, index) => (
+                                    {designSpecs.map((spec) => (
                                         <DesignSpecLink
-                                            key={index}
+                                            key={spec}
                                             spec={spec}
                                             onPreview={() =>
                                                 currentProject &&
@@ -290,12 +310,76 @@ RECOMMENDATION: Product does not meet manufacturing specifications. Immediate re
                     </div>
                 )}
 
+                {/* View inspection prompt (PDF + generic) */}
+                <div className="mb-6">
+                    <button
+                        type="button"
+                        onClick={handleOpenPromptPopup}
+                        className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 hover:underline font-medium flex items-center gap-1.5"
+                    >
+                        <FileDiff className="w-4 h-4" />
+                        View inspection prompt (PDF + generic)
+                    </button>
+                </div>
+
                 {previewSpec && (
                     <DesignSpecPreview
                         projectId={previewSpec.projectId}
                         filename={previewSpec.filename}
                         onClose={() => setPreviewSpec(null)}
                     />
+                )}
+
+                {/* Inspection prompt popup */}
+                {promptPopupOpen && (
+                    <div
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+                        onClick={() => setPromptPopupOpen(false)}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Inspection prompt"
+                    >
+                        <div
+                            className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col border border-slate-200 dark:border-zinc-700"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-zinc-700">
+                                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                                    Inspection prompt (PDF + generic)
+                                </h3>
+                                <button
+                                    type="button"
+                                    onClick={() => setPromptPopupOpen(false)}
+                                    className="p-2 rounded-lg text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                                    aria-label="Close"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+                            <div className="p-4 overflow-auto flex-1 min-h-0">
+                                {promptLoading && (
+                                    <p className="text-slate-500 dark:text-zinc-400">Loading prompt…</p>
+                                )}
+                                {promptError && (
+                                    <Alert variant="error">{promptError}</Alert>
+                                )}
+                                {!promptLoading && !promptError && promptContent && (
+                                    <pre className="text-sm text-slate-700 dark:text-zinc-300 whitespace-pre-wrap font-sans break-words">
+                                        {promptContent}
+                                    </pre>
+                                )}
+                            </div>
+                            <div className="p-4 border-t border-slate-200 dark:border-zinc-700">
+                                <button
+                                    type="button"
+                                    onClick={() => setPromptPopupOpen(false)}
+                                    className="w-full py-2 px-4 rounded-lg bg-slate-200 dark:bg-zinc-700 text-slate-900 dark:text-white font-medium hover:bg-slate-300 dark:hover:bg-zinc-600 transition-colors"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 )}
 
                 {/* Upload Product Photos */}
@@ -351,7 +435,7 @@ RECOMMENDATION: Product does not meet manufacturing specifications. Immediate re
                         <div className="space-y-3">
                             <div className="grid grid-cols-3 gap-3 p-3 bg-slate-100 dark:bg-zinc-800 rounded-xl border-2 border-slate-200 dark:border-zinc-700">
                                 {productPhotos.map((photo, index) => (
-                                    <div key={index} className="relative group/photo">
+                                    <div key={`${photo.name}-${photo.size}-${photo.lastModified}`} className="relative group/photo">
                                         <img
                                             src={previewUrls[index] ?? ""}
                                             alt={photo.name}

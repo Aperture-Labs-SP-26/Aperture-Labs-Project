@@ -6,7 +6,7 @@
  * Uses shared useInspectionHistory hook and same event subscription as Sidebar.
  */
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { History as HistoryIcon, Plus } from "lucide-react";

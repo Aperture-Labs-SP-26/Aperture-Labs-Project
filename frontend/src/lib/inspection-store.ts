@@ -44,7 +44,7 @@ const STORAGE_KEY = "glados:inspections";
 const memoryCache: Record<string, InspectionResult> = {};
 
 function getStore(): Record<string, InspectionResult> {
-    if (typeof window === "undefined") return {};
+    if (typeof globalThis.window === "undefined") return {};
     try {
         const raw = sessionStorage.getItem(STORAGE_KEY);
         return raw ? JSON.parse(raw) : {};
@@ -54,7 +54,7 @@ function getStore(): Record<string, InspectionResult> {
 }
 
 function setStore(store: Record<string, InspectionResult>) {
-    if (typeof window === "undefined") return;
+    if (typeof globalThis.window === "undefined") return;
     try {
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify(store));
     } catch {
@@ -72,8 +72,8 @@ export function saveInspection(result: Omit<InspectionResult, "id">): string {
     store[id] = full;
     setStore(store);
     memoryCache[id] = full;
-    if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent(INSPECTION_UPDATE_EVENT));
+    if (typeof globalThis.window !== "undefined") {
+        globalThis.dispatchEvent(new CustomEvent(INSPECTION_UPDATE_EVENT));
     }
     return id;
 }
@@ -107,8 +107,8 @@ export function saveInspectionBatch(params: {
     store[id] = result;
     setStore(store);
     memoryCache[id] = result;
-    if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent(INSPECTION_UPDATE_EVENT));
+    if (typeof globalThis.window !== "undefined") {
+        globalThis.dispatchEvent(new CustomEvent(INSPECTION_UPDATE_EVENT));
     }
     return id;
 }
@@ -148,8 +148,8 @@ export function saveInspectionPlaceholder(params: {
     store[id] = result;
     setStore(store);
     memoryCache[id] = result;
-    if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent(INSPECTION_UPDATE_EVENT));
+    if (typeof globalThis.window !== "undefined") {
+        globalThis.dispatchEvent(new CustomEvent(INSPECTION_UPDATE_EVENT));
     }
     return id;
 }
@@ -162,8 +162,8 @@ export function updateInspectionProgress(id: string, progress: number): void {
     store[id] = { ...entry, progress: Math.min(100, Math.max(0, progress)) };
     setStore(store);
     if (memoryCache[id]) memoryCache[id] = store[id];
-    if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent(INSPECTION_UPDATE_EVENT));
+    if (typeof globalThis.window !== "undefined") {
+        globalThis.dispatchEvent(new CustomEvent(INSPECTION_UPDATE_EVENT));
     }
 }
 
@@ -184,8 +184,8 @@ export function updateInspectionWithResult(
     store[id] = result;
     setStore(store);
     memoryCache[id] = result;
-    if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent(INSPECTION_UPDATE_EVENT));
+    if (typeof globalThis.window !== "undefined") {
+        globalThis.dispatchEvent(new CustomEvent(INSPECTION_UPDATE_EVENT));
     }
 }
 

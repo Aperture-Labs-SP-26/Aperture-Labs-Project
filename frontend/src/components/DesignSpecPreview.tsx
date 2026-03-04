@@ -11,7 +11,7 @@ type Props = {
     onClose: () => void;
 };
 
-export default function DesignSpecPreview({ projectId, filename, onClose }: Props) {
+export default function DesignSpecPreview({ projectId, filename, onClose }: Readonly<Props>) {
     const [url, setUrl] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -47,18 +47,32 @@ export default function DesignSpecPreview({ projectId, filename, onClose }: Prop
         [onClose],
     );
 
+    const handleBackdropKeyDown = useCallback(
+        (e: React.KeyboardEvent) => {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClose();
+            }
+        },
+        [onClose],
+    );
+
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
             if (e.key === "Escape") onClose();
         };
-        window.addEventListener("keydown", handleEsc);
-        return () => window.removeEventListener("keydown", handleEsc);
+        globalThis.addEventListener("keydown", handleEsc);
+        return () => globalThis.removeEventListener("keydown", handleEsc);
     }, [onClose]);
 
     return (
         <div
+            role="button"
+            tabIndex={0}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm cursor-pointer"
             onClick={handleBackdropClick}
+            onKeyDown={handleBackdropKeyDown}
+            aria-label="Close preview"
         >
             <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl w-[90vw] max-w-5xl h-[85vh] flex flex-col shadow-2xl overflow-hidden cursor-default">
                 {/* Header */}
@@ -136,7 +150,7 @@ export default function DesignSpecPreview({ projectId, filename, onClose }: Prop
     );
 }
 
-function TextPreview({ url }: { url: string }) {
+function TextPreview({ url }: Readonly<{ url: string }>) {
     const [content, setContent] = useState<string | null>(null);
     const [error, setError] = useState(false);
 

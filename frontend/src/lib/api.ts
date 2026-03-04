@@ -6,15 +6,20 @@ export const API_BASE_URL =
     (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) || "http://localhost:8000";
 
 /**
+ * Extract error message from API error body (detail or message) or use fallback.
+ */
+function getErrorDetail(data: unknown, fallback: string): string {
+    const o = data as { detail?: string; message?: string };
+    return o?.detail ?? o?.message ?? fallback;
+}
+
+/**
  * Parse JSON response and throw a consistent Error with detail when !res.ok.
  */
 async function parseJsonResponse<T>(res: Response, fallbackMessage: string): Promise<T> {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-        const detail = (data as { detail?: string; message?: string }).detail
-            ?? (data as { detail?: string; message?: string }).message
-            ?? fallbackMessage;
-        throw new Error(detail);
+        throw new Error(getErrorDetail(data, fallbackMessage));
     }
     return data as T;
 }
@@ -46,9 +51,12 @@ export type ApiProject = {
     archived_at?: string | null;
 };
 
-export async function listProjects(): Promise<ApiProject[]> {
-    const res = await fetch(`${API_BASE_URL}/projects`);
-    const data = await parseJsonResponse<ApiProject[] | unknown>(res, `Failed to list projects: ${res.status}`);
+export async function listProjects(includeArchived?: boolean): Promise<ApiProject[]> {
+    const url = includeArchived === true
+        ? `${API_BASE_URL}/projects?include_archived=true`
+        : `${API_BASE_URL}/projects`;
+    const res = await fetch(url);
+    const data = await parseJsonResponse<unknown>(res, `Failed to list projects: ${res.status}`);
     return Array.isArray(data) ? data : [];
 }
 
@@ -83,7 +91,7 @@ export async function listDesignSpecs(projectId: string): Promise<string[]> {
     const res = await fetch(
         `${API_BASE_URL}/storage/designs?project_id=${encodeURIComponent(projectId)}`,
     );
-    const data = await parseJsonResponse<string[] | unknown>(res, `Failed to list design specs: ${res.status}`);
+    const data = await parseJsonResponse<unknown>(res, `Failed to list design specs: ${res.status}`);
     return Array.isArray(data) ? data : [];
 }
 
@@ -150,7 +158,7 @@ export async function listSubmissions(projectId: string): Promise<ApiSubmission[
     const res = await fetch(
         `${API_BASE_URL}/projects/${encodeURIComponent(projectId)}/submissions`,
     );
-    const data = await parseJsonResponse<ApiSubmission[] | unknown>(res, `Failed to list submissions: ${res.status}`);
+    const data = await parseJsonResponse<unknown>(res, `Failed to list submissions: ${res.status}`);
     return Array.isArray(data) ? data : [];
 }
 
@@ -158,7 +166,7 @@ export async function listAnomalies(submissionId: string): Promise<ApiAnomaly[]>
     const res = await fetch(
         `${API_BASE_URL}/anomalies?submission_id=${encodeURIComponent(submissionId)}`,
     );
-    const data = await parseJsonResponse<ApiAnomaly[] | unknown>(res, `Failed to list anomalies: ${res.status}`);
+    const data = await parseJsonResponse<unknown>(res, `Failed to list anomalies: ${res.status}`);
     return Array.isArray(data) ? data : [];
 }
 
@@ -188,6 +196,8 @@ export type DetectionResponse = {
     model?: string;
     inference_time_ms?: number;
     pass_fail?: "pass" | "fail";
+    /** Full prompt (generic + spec) sent to the VLM, when returned by backend */
+    prompt_used?: string | null;
     /** When the backend parses (x%, y%) from the VLM, coordinates are real. */
     defects?: Array<{
         id: string;
@@ -197,19 +207,34 @@ export type DetectionResponse = {
     }>;
 };
 
-export async function detectFod(file: File): Promise<DetectionResponse> {
+export async function detectFod(file: File, projectId?: string | null): Promise<DetectionResponse> {
     const formData = new FormData();
     formData.append("file", file);
+    if (projectId) {
+        formData.append("project_id", projectId);
+    }
 
     const res = await fetch(`${API_BASE_URL}/detect`, {
         method: "POST",
         body: formData,
     });
 
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: res.statusText }));
-        throw new Error((err as { detail?: string }).detail ?? `Detection failed: ${res.status}`);
+        throw new Error(getErrorDetail(data, `Detection failed: ${res.status}`));
     }
+    return data as DetectionResponse;
+}
 
-    return res.json();
+/** Fetch the full inspection prompt (generic + project PDF spec) that would be used for analysis. */
+export async function getInspectionPrompt(projectId?: string | null): Promise<{ prompt: string }> {
+    const url = projectId
+        ? `${API_BASE_URL}/detect/prompt?project_id=${encodeURIComponent(projectId)}`
+        : `${API_BASE_URL}/detect/prompt`;
+    const res = await fetch(url);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(getErrorDetail(data, `Failed to load prompt: ${res.status}`));
+    }
+    return data as { prompt: string };
 }

@@ -30,7 +30,7 @@ export function InspectionHistoryList({
     emptyMessage = "No inspections yet",
     requireProject = false,
     currentProjectId = null,
-}: Props) {
+}: Readonly<Props>) {
     const showEmpty = requireProject ? !currentProjectId || items.length === 0 : items.length === 0;
 
     return (

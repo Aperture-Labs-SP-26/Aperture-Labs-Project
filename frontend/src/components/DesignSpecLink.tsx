@@ -13,7 +13,7 @@ type Props = {
     leading?: React.ReactNode;
 };
 
-export function DesignSpecLink({ spec, onPreview, className, leading }: Props) {
+export function DesignSpecLink({ spec, onPreview, className, leading }: Readonly<Props>) {
     return (
         <button
             type="button"

@@ -1,3 +1,4 @@
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, UploadFile, File, Query, status
@@ -83,7 +84,7 @@ def get_image_url(
 # -------------------------
 @router.get("/designs", response_model=list[str])
 def list_designs(
-    project_id: UUID = Query(..., description="Project to list design specs for"),
+    project_id: Annotated[UUID, Query(..., description="Project to list design specs for")],
 ):
     """Return list of design spec filenames for a project."""
     return storage_service.list_design_filenames(project_id)

@@ -9,9 +9,11 @@ import {
 } from "@/lib/inspection-store";
 import { listSubmissions, getImageUrl } from "@/lib/api";
 
+const API_SUBMISSION_RUNNING_STATUSES = ["running", "queued"];
+
 function submissionImageName(imageId: string): string {
     const parts = imageId.split("/");
-    return parts[parts.length - 1] ?? "image.png";
+    return parts.at(-1) ?? "image.png";
 }
 
 /**
@@ -45,24 +47,35 @@ export function useInspectionHistory(projectId: string | undefined) {
                         /* presigned URL failed */
                     }
                 }
+                const isRunning = API_SUBMISSION_RUNNING_STATUSES.includes(sub.status);
+                const submissionStatus: "pass" | "fail" | "pending" = isRunning
+                    ? "pending"
+                    : sub.pass_fail === "unknown"
+                      ? "fail"
+                      : sub.pass_fail;
                 const submission: InspectionSubmission = {
                     id: sub.id,
                     timestamp: sub.submitted_at,
                     productPhoto: thumbUrl,
                     photoName: submissionImageName(sub.image_id),
                     designSpec: [],
-                    status: sub.pass_fail === "unknown" ? "fail" : sub.pass_fail,
+                    status: submissionStatus,
                     defects: [],
                     analysis: "",
                 };
-                newApiResults.push({
+                const inspection: InspectionResult = {
                     id: `api-${sub.id}`,
                     imageUrl: thumbUrl,
                     response: "",
                     timestamp: sub.submitted_at,
                     projectId: sub.project_id,
                     submissions: [submission],
-                });
+                };
+                if (isRunning) {
+                    inspection.status = "running";
+                    inspection.progress = 0;
+                }
+                newApiResults.push(inspection);
             }
             const merged = [...newApiResults, ...local].sort(
                 (a, b) =>
@@ -96,8 +109,8 @@ export function useInspectionHistory(projectId: string | undefined) {
             });
             refresh();
         };
-        window.addEventListener(INSPECTION_UPDATE_EVENT, handleUpdate);
-        return () => window.removeEventListener(INSPECTION_UPDATE_EVENT, handleUpdate);
+        globalThis.addEventListener(INSPECTION_UPDATE_EVENT, handleUpdate);
+        return () => globalThis.removeEventListener(INSPECTION_UPDATE_EVENT, handleUpdate);
     }, [refresh, projectId]);
 
     return { inspections, refresh };
