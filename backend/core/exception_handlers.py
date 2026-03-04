@@ -4,57 +4,55 @@ from fastapi.responses import JSONResponse
 from core import exceptions
 
 
-def project_not_found_handler(exc: exceptions.ProjectNotFound):
+def project_not_found_handler(request: Request, exc: exceptions.ProjectNotFound): # NOSONAR exceptions.ProjectNotFound
     return JSONResponse(
         status_code=status.HTTP_404_NOT_FOUND,
         content={"detail": exc.detail},
     )
 
 
-def anomaly_not_found_handler(exc: exceptions.AnomalyNotFound):
+def anomaly_not_found_handler(request: Request, exc: exceptions.AnomalyNotFound): # NOSONAR exceptions.AnomalyNotFound
     return JSONResponse(
         status_code=status.HTTP_404_NOT_FOUND,
         content={"detail": exc.detail},
     )
 
 
-def user_not_found_handler(exc: exceptions.UserNotFound):
+def user_not_found_handler(request: Request, exc: exceptions.UserNotFound): # NOSONAR exceptions.UserNotFound
     return JSONResponse(
         status_code=status.HTTP_404_NOT_FOUND,
         content={"detail": exc.detail},
     )
 
 
-def member_not_found_handler(exc: exceptions.MemberNotFound):
+def member_not_found_handler(request: Request, exc: exceptions.MemberNotFound): # NOSONAR exceptions.MemberNotFound
     return JSONResponse(
         status_code=status.HTTP_404_NOT_FOUND,
         content={"detail": exc.detail},
     )
 
 
-def submission_not_found_handler(exc: exceptions.SubmissionNotFound):
+def submission_not_found_handler(request: Request, exc: exceptions.SubmissionNotFound): # NOSONAR exceptions.SubmissionNotFound
     return JSONResponse(
         status_code=status.HTTP_404_NOT_FOUND,
         content={"detail": exc.detail},
     )
 
-
-def unauthorized_handler(exc: exceptions.Unauthorized):
+def unauthorized_handler(request: Request, exc: exceptions.Unauthorized): # NOSONAR  exceptions.Unauthorized
     return JSONResponse(
         status_code=status.HTTP_401_UNAUTHORIZED,
         content={"detail": exc.detail},
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-
-def permission_denied_handler(exc: exceptions.PermissionDenied):
+def permission_denied_handler(request: Request, exc: exceptions.PermissionDenied): # NOSONAR exceptions.PermissionDenied
     return JSONResponse(
         status_code=status.HTTP_403_FORBIDDEN,
         content={"detail": exc.detail},
     )
 
 
-def conflict_error_handler(exc: exceptions.ConflictError):
+def conflict_error_handler(request: Request, exc: exceptions.ConflictError): # NOSONAR exceptions.ConflictError
     return JSONResponse(
         status_code=status.HTTP_409_CONFLICT,
         content={"detail": exc.detail},
@@ -62,6 +60,7 @@ def conflict_error_handler(exc: exceptions.ConflictError):
 
 
 def invalid_state_transition_handler(
+    request: Request, # NOSONAR exceptions.InvalidStateTransition
     exc: exceptions.InvalidStateTransition,
 ):
     return JSONResponse(
