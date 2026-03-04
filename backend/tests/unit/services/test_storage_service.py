@@ -5,6 +5,12 @@ from unittest.mock import MagicMock, AsyncMock, patch
 from fastapi import HTTPException
 
 from services import storage_service
+from utils.file_validation import (
+    PNG_MAGIC,
+    PDF_MAGIC,
+    MAX_IMAGE_UPLOAD_BYTES,
+    MAX_DESIGN_UPLOAD_BYTES,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -28,7 +34,7 @@ class TestStorageServiceUploadImage:
         mock_file = AsyncMock()
         mock_file.filename = "test.png"
         mock_file.content_type = "image/png"
-        mock_file.read = AsyncMock(return_value=b"fake image bytes")
+        mock_file.read = AsyncMock(return_value=PNG_MAGIC + b" rest of png content")
 
         result = await storage_service.upload_image(
             db=mock_db,
@@ -108,6 +114,50 @@ class TestStorageServiceUploadImage:
                 )
             assert exc.value.status_code == 400
 
+    @pytest.mark.asyncio
+    @patch("services.storage_service.project_service.get_project")
+    async def test_upload_image_file_too_large(self, mock_get_project):
+        """Test upload fails when image exceeds max size."""
+        mock_get_project.return_value = MagicMock()
+        mock_db = MagicMock()
+        mock_file = AsyncMock()
+        mock_file.filename = "large.png"
+        mock_file.content_type = "image/png"
+        mock_file.read = AsyncMock(return_value=PNG_MAGIC + b"x" * (MAX_IMAGE_UPLOAD_BYTES + 1))
+
+        with pytest.raises(HTTPException) as exc:
+            await storage_service.upload_image(
+                db=mock_db,
+                project_id=uuid.uuid4(),
+                user_id=uuid.uuid4(),
+                file=mock_file,
+                allowed_types=["image/png", "image/jpeg"],
+            )
+        assert exc.value.status_code == 400
+        assert "too large" in exc.value.detail.lower()
+
+    @pytest.mark.asyncio
+    @patch("services.storage_service.project_service.get_project")
+    async def test_upload_image_invalid_content_not_image(self, mock_get_project):
+        """Test upload fails when file content is not valid PNG/JPEG."""
+        mock_get_project.return_value = MagicMock()
+        mock_db = MagicMock()
+        mock_file = AsyncMock()
+        mock_file.filename = "fake.png"
+        mock_file.content_type = "image/png"
+        mock_file.read = AsyncMock(return_value=b"not an image at all")
+
+        with pytest.raises(HTTPException) as exc:
+            await storage_service.upload_image(
+                db=mock_db,
+                project_id=uuid.uuid4(),
+                user_id=uuid.uuid4(),
+                file=mock_file,
+                allowed_types=["image/png", "image/jpeg"],
+            )
+        assert exc.value.status_code == 400
+        assert "not a valid" in exc.value.detail.lower()
+
 
 class TestStorageServiceUploadDesign:
 
@@ -126,7 +176,7 @@ class TestStorageServiceUploadDesign:
         mock_file = AsyncMock()
         mock_file.filename = "spec.pdf"
         mock_file.content_type = "application/pdf"
-        mock_file.read = AsyncMock(return_value=b"fake pdf bytes")
+        mock_file.read = AsyncMock(return_value=PDF_MAGIC + b" rest of pdf content")
 
         result = await storage_service.upload_design(
             db=mock_db,
@@ -159,6 +209,50 @@ class TestStorageServiceUploadDesign:
                     allowed_types=["application/pdf", "text/plain"],
                 )
             assert exc.value.status_code == 400
+
+    @pytest.mark.asyncio
+    @patch("services.storage_service.project_service.get_project")
+    async def test_upload_design_file_too_large(self, mock_get_project):
+        """Test design upload fails when file exceeds max size."""
+        mock_get_project.return_value = MagicMock()
+        mock_db = MagicMock()
+        mock_file = AsyncMock()
+        mock_file.filename = "huge.pdf"
+        mock_file.content_type = "application/pdf"
+        mock_file.read = AsyncMock(
+            return_value=PDF_MAGIC + b"x" * (MAX_DESIGN_UPLOAD_BYTES + 1)
+        )
+
+        with pytest.raises(HTTPException) as exc:
+            await storage_service.upload_design(
+                db=mock_db,
+                project_id=uuid.uuid4(),
+                file=mock_file,
+                allowed_types=["application/pdf", "text/plain"],
+            )
+        assert exc.value.status_code == 400
+        assert "too large" in exc.value.detail.lower()
+
+    @pytest.mark.asyncio
+    @patch("services.storage_service.project_service.get_project")
+    async def test_upload_design_invalid_pdf_content(self, mock_get_project):
+        """Test design upload fails when content_type is PDF but content is not."""
+        mock_get_project.return_value = MagicMock()
+        mock_db = MagicMock()
+        mock_file = AsyncMock()
+        mock_file.filename = "fake.pdf"
+        mock_file.content_type = "application/pdf"
+        mock_file.read = AsyncMock(return_value=b"not a real pdf")
+
+        with pytest.raises(HTTPException) as exc:
+            await storage_service.upload_design(
+                db=mock_db,
+                project_id=uuid.uuid4(),
+                file=mock_file,
+                allowed_types=["application/pdf", "text/plain"],
+            )
+        assert exc.value.status_code == 400
+        assert "not a valid PDF" in exc.value.detail
 
 
 class TestStorageServicePresignedUrls:
@@ -231,3 +325,33 @@ class TestStorageServicePresignedUrls:
             download=False,
         )
         assert result.expires_in == 3600
+
+
+class TestStorageServiceListDesignFilenames:
+
+    @patch("services.storage_service.minio_client")
+    def test_list_design_filenames_success(self, mock_minio):
+        """Test listing design filenames returns names without designs/ prefix."""
+        project_id = uuid.uuid4()
+        mock_minio.list_objects.return_value = [
+            "designs/spec1.pdf",
+            "designs/spec2.txt",
+        ]
+
+        result = storage_service.list_design_filenames(project_id)
+
+        mock_minio.list_objects.assert_called_once_with(
+            bucket=str(project_id),
+            prefix="designs/",
+        )
+        assert result == ["spec1.pdf", "spec2.txt"]
+
+    @patch("services.storage_service.minio_client")
+    def test_list_design_filenames_exception_returns_empty(self, mock_minio):
+        """Test list_design_filenames returns [] when MinIO raises."""
+        project_id = uuid.uuid4()
+        mock_minio.list_objects.side_effect = Exception("MinIO error")
+
+        result = storage_service.list_design_filenames(project_id)
+
+        assert result == []
