@@ -45,10 +45,9 @@ Press **Ctrl+C** to stop the backend and frontend; Docker keeps running. To stop
 
 ## Optional: Ollama (real VLM detection)
 
-For live FOD detection instead of mock results:
+For live FOD detection instead of mock results, install [Ollama](https://ollama.com).
 
-1. Install [Ollama](https://ollama.com)
-2. Run: `ollama pull qwen2.5vl:7b` then `ollama serve`
+`./run.sh` (and `make run`) will automatically start Ollama and pull `qwen2.5vl:7b` if Ollama is installed. If it's not installed, the app falls back to mock detection responses.
 
 ---
 

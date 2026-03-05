@@ -37,6 +37,24 @@ fi
 source venv/bin/activate
 pip install -q -r requirements.txt
 
+echo "[3b/5] Ollama (optional): checking for Ollama..."
+OLLAMA_PID=""
+if command -v ollama &>/dev/null; then
+  if ! pgrep -x ollama &>/dev/null; then
+    echo "  Starting Ollama in background..."
+    ollama serve &>/dev/null &
+    OLLAMA_PID=$!
+    sleep 3
+  else
+    echo "  Ollama already running."
+  fi
+  echo "  Pulling qwen2.5vl:7b (skipped if already present)..."
+  ollama pull qwen2.5vl:7b &>/dev/null &
+else
+  echo "  Ollama not installed — VLM detection will use mock responses."
+  echo "  Install from https://ollama.com and run: ollama pull qwen2.5vl:7b"
+fi
+
 echo "[4/5] Starting backend API on http://127.0.0.1:8000 ..."
 uvicorn main:app --reload --host 127.0.0.1 --port 8000 &
 UVICORN_PID=$!
@@ -55,6 +73,7 @@ cleanup() {
   echo "Shutting down..."
   kill $UVICORN_PID 2>/dev/null || true
   kill $NEXT_PID 2>/dev/null || true
+  [ -n "$OLLAMA_PID" ] && kill $OLLAMA_PID 2>/dev/null || true
   exit 0
 }
 trap cleanup SIGINT SIGTERM
