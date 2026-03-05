@@ -22,6 +22,9 @@ Or directly:
 chmod +x run.sh && ./run.sh
 ```
 
+**Stop everything:** `make kill` — stops backend, frontend, Ollama, and Docker (keeps DB).  
+**Stop everything + reset DB:** `make kill-reset` — same as above and removes Docker volumes (fresh DB on next `make run`).
+
 This will:
 
 1. Start Postgres and MinIO with `docker compose up -d`
@@ -29,11 +32,14 @@ This will:
 3. Create a Python venv and install backend deps, then start the API at **http://127.0.0.1:8000**
 4. Run `npm install` if needed and start the frontend at **http://localhost:3998**
 
-**Log in:** `test@example.com` / `test`
+**Log in:** `test@example.com` / `test`  
+(Seed users: alice/bob/carol use password `password123`, test@example.com uses `test`. Passwords are stored in plain text; do not commit `backend/.env`—use `.env.example` for documentation.)
 
 Press **Ctrl+C** to stop the backend and frontend; Docker keeps running. To stop Docker: `make dev-down` or `docker compose down`.
 
 **If `make run` or `./run.sh` fails** (e.g. on Windows, or a step errors), use the [step-by-step instructions](#step-by-step-if-one-command-doesnt-work) below.
+
+**Login shows "Cannot reach the backend" or connection timeout?** The frontend calls `http://localhost:8000`. Start the full app with `make run` (starts Docker + backend + frontend), or start the backend first in one terminal (`cd backend && source venv/bin/activate && uvicorn main:app --reload --host 127.0.0.1 --port 8000`) then the frontend in another.
 
 ---
 
@@ -55,10 +61,8 @@ Use these steps if `make run` fails or you're on Windows (where `run.sh` is not 
 Ensure `backend/.env` exists. If not, copy from example or create with:
 
 ```bash
-# backend/.env
+# backend/.env (do not commit; use .env.example for docs)
 DATABASE_URL=postgresql://user:pass@127.0.0.1:5434/appdb
-SECRET_KEY=dev-secret-key-change-in-production
-ACCESS_TOKEN_EXPIRE_MINUTES=30
 MINIO_ENDPOINT=localhost:9002
 MINIO_ACCESS_KEY=minioadmin
 MINIO_SECRET_KEY=minioadmin
@@ -94,8 +98,8 @@ uvicorn main:app --reload --host 127.0.0.1 --port 8000
 
 Leave this terminal running. Then check:
 
-- API: http://127.0.0.1:8000  
-- Swagger: http://127.0.0.1:8000/docs  
+- API: http://127.0.0.1:8000
+- Swagger: http://127.0.0.1:8000/docs
 
 ### 4. Frontend (second terminal)
 
@@ -107,8 +111,8 @@ npm install
 npm run dev
 ```
 
-- App: http://localhost:3998  
-- Log in with: `test@example.com` / `test`  
+- App: http://localhost:3998
+- Log in with: `test@example.com` / `test`
 
 ---
 
@@ -138,9 +142,11 @@ pytest tests/unit/services/test_auth_service.py -v
 
 ## Teardown
 
-- Stop backend/frontend: Ctrl+C (if you used `./run.sh`).
-- Stop Docker: `make dev-down` or `docker compose down`.
-- Reset DB and storage: `docker compose down -v` then `docker compose up -d`.
+- **Stop backend/frontend:** Ctrl+C (if you used `./run.sh`).
+- **Stop everything:** `make kill` — stops backend (8000), frontend (3998), Ollama (11434), and Docker.
+- **Stop everything + reset DB:** `make kill-reset` — same as above and removes Docker volumes (fresh DB on next `make run`).
+- **Docker only:** `make dev-down` or `docker compose down`.
+- **Reset DB and storage:** `docker compose down -v` then `docker compose up -d`.
 
 ---
 

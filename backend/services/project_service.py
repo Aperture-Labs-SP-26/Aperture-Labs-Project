@@ -80,6 +80,11 @@ def delete_project(db: Session, project_id: uuid.UUID) -> None:
     project.updated_at = datetime.now(timezone.utc)
     db.commit()
 
+    try:
+        minio_client.delete_project_bucket(str(project_id))
+    except Exception:
+        pass
+
 
 def archive_project(db: Session, project_id: uuid.UUID) -> Project:
     project = get_project(db, project_id)
