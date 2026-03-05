@@ -181,7 +181,6 @@ RECOMMENDATION: Product does not meet manufacturing specifications. Immediate re
                         result.defects && result.defects.length > 0
                             ? result.defects.map((d) => ({
                                   id: d.id,
-                                  location: d.location,
                                   severity: normalizeSeverityToDefect(d.severity),
                                   description: d.description,
                               }))
@@ -229,6 +228,7 @@ RECOMMENDATION: Product does not meet manufacturing specifications. Immediate re
             }
 
             const first = submissions[0];
+            if (!first) return;
             updateInspectionWithResult(placeholderId, {
                 imageUrl: first.productPhoto,
                 response: first.analysis,
@@ -248,7 +248,7 @@ RECOMMENDATION: Product does not meet manufacturing specifications. Immediate re
             }
         };
 
-        runBackground();
+        void runBackground();
     };
 
     const designSpecs = currentProject?.designSpecs ?? [];
@@ -334,14 +334,18 @@ RECOMMENDATION: Product does not meet manufacturing specifications. Immediate re
                 {promptPopupOpen && (
                     <div
                         className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
-                        onClick={() => setPromptPopupOpen(false)}
+                        onClick={(e) => {
+                            if (e.target === e.currentTarget) setPromptPopupOpen(false);
+                        }}
+                        onKeyDown={(e) => {
+                            if (e.key === "Escape") setPromptPopupOpen(false);
+                        }}
                         role="dialog"
                         aria-modal="true"
                         aria-label="Inspection prompt"
                     >
                         <div
                             className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col border border-slate-200 dark:border-zinc-700"
-                            onClick={(e) => e.stopPropagation()}
                         >
                             <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-zinc-700">
                                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white">

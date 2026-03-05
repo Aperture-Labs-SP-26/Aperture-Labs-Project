@@ -240,6 +240,13 @@ class OllamaVLM:
                 prompt_used=prompt,
             )
 
+    @staticmethod
+    def _prompt_rules() -> str:
+        return (
+            "3) You must end your response with exactly one line: RESULT: PASS or RESULT: FAIL.\n\n"
+            "Do not respond with only 'RESULT: PASS' or 'RESULT: FAIL'. Always include a short description and reason."
+        )
+
     def _default_generic_prompt(self) -> str:
         """Generic inspection prompt when no spec is provided (versatile, not domain-specific)."""
         return (
@@ -250,8 +257,7 @@ class OllamaVLM:
             "2) If the image is suitable for inspection, check for defects, anomalies, or issues:\n"
             "   - If you find NO issues: explain why it passes. End with: RESULT: PASS\n"
             "   - If you find issues: list each defect with severity (CRITICAL FAILURES, MAJOR ISSUES, or MINOR ISSUES) and approximate position (X%, Y%). End with: RESULT: FAIL\n"
-            "3) You must end your response with exactly one line: RESULT: PASS or RESULT: FAIL.\n\n"
-            "Do not respond with only 'RESULT: PASS' or 'RESULT: FAIL'. Always include a short description and reason."
+            + self._prompt_rules()
         )
 
     def _build_spec_prompt(self, spec_text: str) -> str:
@@ -266,8 +272,7 @@ class OllamaVLM:
             "2) If the image is in scope, evaluate it against the specification:\n"
             "   - If the image meets the criteria (no defects or issues listed in the spec): explain why. End with: RESULT: PASS\n"
             "   - If you find defects or non-conformities: list each with severity (CRITICAL FAILURES, MAJOR ISSUES, or MINOR ISSUES) and approximate position (X%, Y%). End with: RESULT: FAIL\n"
-            "3) You must end your response with exactly one line: RESULT: PASS or RESULT: FAIL.\n\n"
-            "Do not respond with only 'RESULT: PASS' or 'RESULT: FAIL'. Always include a short description and reason."
+            + self._prompt_rules()
         )
 
     def _image_to_base64(self, image: Image.Image) -> str:
