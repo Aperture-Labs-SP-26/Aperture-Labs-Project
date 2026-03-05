@@ -3,7 +3,7 @@ BEGIN;
 --==============================================
 -- insert sample data for all tables
 
--- users (MVP: password_hash stores plain password for test user)
+-- users (passwords stored in plain text; test@example.com password: test, others: password123)
 INSERT INTO users (
     id, email, password_hash, created_at, updated_at
 ) VALUES
@@ -17,21 +17,21 @@ INSERT INTO users (
 (
     '11111111-1111-1111-1111-111111111111',
     'alice@example.com',
-    '$2b$12$aliceFakeHash',
+    'password123',
     NOW(),
     NOW()
 ),
 (
     '22222222-2222-2222-2222-222222222222',
     'bob@example.com',
-    '$2b$12$bobFakeHash',
+    'password123',
     NOW(),
     NOW()
 ),
 (
     '33333333-3333-3333-3333-333333333333',
     'carol@example.com',
-    '$2b$12$carolFakeHash',
+    'password123',
     NOW(),
     NOW()
 );

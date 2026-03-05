@@ -42,10 +42,15 @@ export default function LoginPage() {
             }
         } catch (err) {
             const message = err instanceof Error ? err.message : "Login failed";
-            // "Failed to fetch" usually means the API server isn't running or not reachable
-            if (message === "Failed to fetch") {
+            const isNetworkError =
+                message === "Failed to fetch" ||
+                message.includes("NetworkError") ||
+                message.includes("Connection") ||
+                message.includes("timeout") ||
+                message.includes("Load failed");
+            if (isNetworkError) {
                 setError(
-                    "Cannot reach the server. Make sure the backend API is running (e.g. from backend/: uvicorn main:app --reload) and reachable at " +
+                    "Cannot reach the backend. Start the API first (e.g. make run from project root, or run backend then frontend). Expected: " +
                         API_BASE_URL,
                 );
             } else {

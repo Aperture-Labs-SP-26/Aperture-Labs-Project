@@ -198,10 +198,8 @@ export type DetectionResponse = {
     pass_fail?: "pass" | "fail";
     /** Full prompt (generic + spec) sent to the VLM, when returned by backend */
     prompt_used?: string | null;
-    /** When the backend parses (x%, y%) from the VLM, coordinates are real. */
     defects?: Array<{
         id: string;
-        location: { x: number; y: number };
         severity: string;
         description: string;
     }>;

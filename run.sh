@@ -19,8 +19,6 @@ if [ ! -f "$BACKEND_ENV" ]; then
   echo "[2b] Creating backend/.env from defaults..."
   cat > "$BACKEND_ENV" << 'EOF'
 DATABASE_URL=postgresql://user:pass@127.0.0.1:5434/appdb
-SECRET_KEY=dev-secret-key-change-in-production
-ACCESS_TOKEN_EXPIRE_MINUTES=30
 MINIO_ENDPOINT=localhost:9002
 MINIO_ACCESS_KEY=minioadmin
 MINIO_SECRET_KEY=minioadmin

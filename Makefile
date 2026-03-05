@@ -1,4 +1,4 @@
-.PHONY: dev dev-down dev-reset run test test-unit test-api test-down clean
+.PHONY: dev dev-down dev-reset run kill kill-reset test test-unit test-api test-down clean
 
 # -------------------------
 # Development
@@ -18,6 +18,22 @@ dev-reset:
 run:
 	@chmod +x run.sh
 	./run.sh
+
+# Stop everything: backend (8000), frontend (3998), Ollama (11434), Docker (Postgres + MinIO)
+kill:
+	@lsof -ti :8000 | xargs kill -9 2>/dev/null; true
+	@lsof -ti :3998 | xargs kill -9 2>/dev/null; true
+	@lsof -ti :11434 | xargs kill -9 2>/dev/null; true
+	docker compose down
+	@echo "Stopped app, Ollama, and Docker."
+
+# Stop everything and remove Docker volumes (resets local DB and MinIO data). Next 'make run' starts fresh.
+kill-reset:
+	@lsof -ti :8000 | xargs kill -9 2>/dev/null; true
+	@lsof -ti :3998 | xargs kill -9 2>/dev/null; true
+	@lsof -ti :11434 | xargs kill -9 2>/dev/null; true
+	docker compose down -v
+	@echo "Stopped everything and removed volumes (DB reset)."
 
 # -------------------------
 # Testing

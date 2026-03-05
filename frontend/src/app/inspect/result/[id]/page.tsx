@@ -85,9 +85,8 @@ function buildResultFromApi(
     imageUrl: string,
 ): InspectionResult {
     const photoName = sub.image_id.split("/").pop() ?? "image.png";
-    const defects: Defect[] = anomalies.map((a, i) => ({
+    const defects: Defect[] = anomalies.map((a) => ({
         id: a.id,
-        location: { x: 50, y: 30 + ((i * 20) % 50) },
         severity: normalizeSeverityToDefect(a.severity),
         description: a.description ?? a.label,
     }));
@@ -621,7 +620,7 @@ export default function InspectResultPage() {
                                     </div>
                                 )}
 
-                                {/* Product Image with Defect Markers */}
+                                {/* Product Image */}
                                 <section className="mb-8 min-w-0">
                                     <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
                                         Product Image
@@ -632,42 +631,6 @@ export default function InspectResultPage() {
                                             alt={`Product ${submissionIndex + 1}`}
                                             className="w-full max-w-full h-auto object-contain"
                                         />
-                                        {submission.defects.map((defect: Defect) => (
-                                            <div
-                                                key={defect.id}
-                                                className="absolute w-6 h-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer group"
-                                                style={{
-                                                    left: `${defect.location.x}%`,
-                                                    top: `${defect.location.y}%`,
-                                                }}
-                                            >
-                                                <div
-                                                    className={`w-6 h-6 rounded-full border-2 flex items-center justify-center animate-pulse ${
-                                                        defect.severity === "critical"
-                                                            ? "bg-red-500 border-red-300"
-                                                            : defect.severity === "major"
-                                                              ? "bg-orange-500 border-orange-300"
-                                                              : "bg-yellow-500 border-yellow-300"
-                                                    }`}
-                                                >
-                                                    <div className="w-2 h-2 bg-white rounded-full" />
-                                                </div>
-                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
-                                                    <div className="bg-slate-900 dark:bg-zinc-800 text-white text-xs rounded-lg py-2 px-3 whitespace-nowrap shadow-lg border border-slate-700 dark:border-zinc-700">
-                                                        <p className="font-semibold mb-1">
-                                                            {defect.id}
-                                                        </p>
-                                                        <p
-                                                            className={getSeverityColor(
-                                                                defect.severity,
-                                                            )}
-                                                        >
-                                                            {defect.severity.toUpperCase()}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
                                     </div>
                                 </section>
 
@@ -683,24 +646,17 @@ export default function InspectResultPage() {
                                                     key={defect.id}
                                                     className="bg-slate-50 dark:bg-zinc-800 rounded-lg p-4 border border-slate-200 dark:border-zinc-700"
                                                 >
-                                                    <div className="flex items-start justify-between mb-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="font-mono text-sm font-semibold text-slate-900 dark:text-white">
-                                                                {defect.id}
-                                                            </span>
-                                                            <span
-                                                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${getSeverityBadgeColor(
-                                                                    defect.severity,
-                                                                )}`}
-                                                            >
-                                                                {getSeverityIcon(defect.severity)}
-                                                                {defect.severity.toUpperCase()}
-                                                            </span>
-                                                        </div>
-                                                        <span className="text-xs text-slate-500 dark:text-zinc-500">
-                                                            @ ({defect.location.x}
-                                                            %, {defect.location.y}
-                                                            %)
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <span className="font-mono text-sm font-semibold text-slate-900 dark:text-white">
+                                                            {defect.id}
+                                                        </span>
+                                                        <span
+                                                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${getSeverityBadgeColor(
+                                                                defect.severity,
+                                                            )}`}
+                                                        >
+                                                            {getSeverityIcon(defect.severity)}
+                                                            {defect.severity.toUpperCase()}
                                                         </span>
                                                     </div>
                                                     <p className="text-slate-700 dark:text-zinc-300">
