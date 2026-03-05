@@ -44,7 +44,7 @@ const STORAGE_KEY = "glados:inspections";
 const memoryCache: Record<string, InspectionResult> = {};
 
 function getStore(): Record<string, InspectionResult> {
-    if (typeof globalThis.window === "undefined") return {};
+    if (globalThis.window === undefined) return {};
     try {
         const raw = sessionStorage.getItem(STORAGE_KEY);
         return raw ? JSON.parse(raw) : {};
