@@ -12,16 +12,10 @@ from typing import Optional
 import requests
 from PIL import Image
 
-from schemas.detection import DetectionResponse, DefectSchema, DefectLocation
+from schemas.detection import DetectionResponse, DefectSchema
 
 # Default: Qwen2.5-VL 7B. Override with env OLLAMA_VLM_MODEL (e.g. qwen2.5vl:72b).
 DEFAULT_MODEL = os.environ.get("OLLAMA_VLM_MODEL", "qwen2.5vl:7b")
-
-# Default positions when the model doesn't provide (x%, y%)
-_DEFAULT_POSITIONS: list[tuple[float, float]] = [
-    (25, 30), (50, 50), (75, 35), (35, 70), (65, 65),
-]
-
 
 def _parse_pass_fail(response: str) -> str:
     """Extract pass/fail from response. Expects 'RESULT: PASS' or 'RESULT: FAIL'."""
@@ -53,26 +47,14 @@ def _severity_from_line(line: str) -> Optional[str]:
     return None
 
 
-def _parse_one_bullet(
-    rest: str, current_severity: str, defect_index: int, coord_re: re.Pattern[str]
-) -> Optional[dict]:
+def _parse_one_bullet(rest: str, current_severity: str, defect_index: int) -> Optional[dict]:
     """Parse a bullet line into one defect entry dict, or None if too short."""
     if len(rest) < 5:
         return None
-    coord_match = coord_re.search(rest)
-    if coord_match:
-        x = max(0, min(100, float(coord_match.group(1))))
-        y = max(0, min(100, float(coord_match.group(2))))
-        desc = coord_re.sub("", rest).strip().strip("— -") or rest
-    else:
-        idx = defect_index % len(_DEFAULT_POSITIONS)
-        x, y = _DEFAULT_POSITIONS[idx]
-        desc = rest
     return {
         "id": f"DEF-{str(defect_index + 1).zfill(3)}",
-        "x": x, "y": y,
         "severity": current_severity,
-        "description": desc,
+        "description": rest.strip(),
     }
 
 
@@ -84,19 +66,17 @@ def _fallback_defect(response: str) -> Optional[DefectSchema]:
     severity = "critical" if "critical" in response.lower() else "major"
     return DefectSchema(
         id="DEF-001",
-        location=DefectLocation(x=50, y=50),
         severity=severity,
         description=snippet or "Anomaly detected (see full analysis below)",
     )
 
 
 def _parse_defects_from_response(response: str) -> list[DefectSchema]:
-    """Parse VLM response into defects; extract (x%, y%) when present."""
+    """Parse VLM response into defects."""
     entries: list[dict] = []
     lines = response.splitlines()
     current_severity: Optional[str] = None
     defect_index = 0
-    coord_re = re.compile(r"\((\d+(?:\.\d+)?)\s*%?\s*,\s*(\d+(?:\.\d+)?)\s*%?\)")
 
     for line in lines:
         if severity := _severity_from_line(line):
@@ -111,20 +91,13 @@ def _parse_defects_from_response(response: str) -> list[DefectSchema]:
 
         bullet_match = re.match(r"^[\s]*[•\-*]\s*(.+)", line)
         if bullet_match and current_severity:
-            entry = _parse_one_bullet(
-                bullet_match[1].strip(), current_severity, defect_index, coord_re
-            )
+            entry = _parse_one_bullet(bullet_match[1].strip(), current_severity, defect_index)
             if entry:
                 entries.append(entry)
                 defect_index += 1
 
     defects = [
-        DefectSchema(
-            id=e["id"],
-            location=DefectLocation(x=e["x"], y=e["y"]),
-            severity=e["severity"],
-            description=e["description"],
-        )
+        DefectSchema(id=e["id"], severity=e["severity"], description=e["description"])
         for e in entries
     ]
     fallback = _fallback_defect(response)
@@ -238,7 +211,6 @@ class OllamaVLM:
                 defects = [
                     DefectSchema(
                         id="DEF-001",
-                        location=DefectLocation(x=50, y=50),
                         severity="major",
                         description="Inspection failed. See full analysis above for details.",
                     )
@@ -261,7 +233,6 @@ class OllamaVLM:
                 defects=[
                     DefectSchema(
                         id="DEF-001",
-                        location=DefectLocation(x=50, y=50),
                         severity="major",
                         description=error + ". Detection request failed.",
                     )
