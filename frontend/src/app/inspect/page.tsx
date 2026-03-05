@@ -35,7 +35,6 @@ export default function InspectPage() {
         }
         if (!currentProject?.id) {
             router.replace("/projects");
-            return;
         }
     }, [hasRestoredFromStorage, user, currentProject, router]);
 

@@ -54,7 +54,7 @@ function getStore(): Record<string, InspectionResult> {
 }
 
 function setStore(store: Record<string, InspectionResult>) {
-    if (typeof globalThis.window === "undefined") return;
+    if (globalThis.window === undefined) return;
     try {
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify(store));
     } catch {
@@ -72,7 +72,7 @@ export function saveInspection(result: Omit<InspectionResult, "id">): string {
     store[id] = full;
     setStore(store);
     memoryCache[id] = full;
-    if (typeof globalThis.window !== "undefined") {
+    if (globalThis.window !== undefined) {
         globalThis.dispatchEvent(new CustomEvent(INSPECTION_UPDATE_EVENT));
     }
     return id;
@@ -107,7 +107,7 @@ export function saveInspectionBatch(params: {
     store[id] = result;
     setStore(store);
     memoryCache[id] = result;
-    if (typeof globalThis.window !== "undefined") {
+    if (globalThis.window !== undefined) {
         globalThis.dispatchEvent(new CustomEvent(INSPECTION_UPDATE_EVENT));
     }
     return id;
@@ -148,7 +148,7 @@ export function saveInspectionPlaceholder(params: {
     store[id] = result;
     setStore(store);
     memoryCache[id] = result;
-    if (typeof globalThis.window !== "undefined") {
+    if (globalThis.window !== undefined) {
         globalThis.dispatchEvent(new CustomEvent(INSPECTION_UPDATE_EVENT));
     }
     return id;
@@ -162,7 +162,7 @@ export function updateInspectionProgress(id: string, progress: number): void {
     store[id] = { ...entry, progress: Math.min(100, Math.max(0, progress)) };
     setStore(store);
     if (memoryCache[id]) memoryCache[id] = store[id];
-    if (typeof globalThis.window !== "undefined") {
+    if (globalThis.window !== undefined) {
         globalThis.dispatchEvent(new CustomEvent(INSPECTION_UPDATE_EVENT));
     }
 }
@@ -184,7 +184,7 @@ export function updateInspectionWithResult(
     store[id] = result;
     setStore(store);
     memoryCache[id] = result;
-    if (typeof globalThis.window !== "undefined") {
+    if (globalThis.window !== undefined) {
         globalThis.dispatchEvent(new CustomEvent(INSPECTION_UPDATE_EVENT));
     }
 }

@@ -71,22 +71,29 @@ def _fallback_defect(response: str) -> Optional[DefectSchema]:
     )
 
 
+def _is_continuation_line(stripped: str) -> bool:
+    return stripped.startswith("location:") or stripped.startswith("recommended action:")
+
+
+def _append_continuation(entries: list[dict], line: str) -> None:
+    extra = re.sub(r"^[\s\S]*?:\s*", "", line, flags=re.I).strip()
+    if extra:
+        entries[-1]["description"] += f" — {extra}"
+
+
 def _parse_defects_from_response(response: str) -> list[DefectSchema]:
     """Parse VLM response into defects."""
     entries: list[dict] = []
-    lines = response.splitlines()
     current_severity: Optional[str] = None
     defect_index = 0
 
-    for line in lines:
+    for line in response.splitlines():
         if severity := _severity_from_line(line):
             current_severity = severity
 
         stripped = line.lower().strip()
-        if entries and (stripped.startswith("location:") or stripped.startswith("recommended action:")):
-            extra = re.sub(r"^[\s\S]*?:\s*", "", line, flags=re.I).strip()
-            if extra:
-                entries[-1]["description"] += f" — {extra}"
+        if entries and _is_continuation_line(stripped):
+            _append_continuation(entries, line)
             continue
 
         bullet_match = re.match(r"^[\s]*[•\-*]\s*(.+)", line)

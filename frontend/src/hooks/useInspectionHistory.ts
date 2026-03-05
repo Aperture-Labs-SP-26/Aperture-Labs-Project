@@ -9,7 +9,7 @@ import {
 } from "@/lib/inspection-store";
 import { listSubmissions, getImageUrl } from "@/lib/api";
 
-const API_SUBMISSION_RUNNING_STATUSES = ["running", "queued"];
+const API_SUBMISSION_RUNNING_STATUSES = new Set(["running", "queued"]);
 
 function submissionImageName(imageId: string): string {
     const parts = imageId.split("/");
@@ -47,7 +47,7 @@ export function useInspectionHistory(projectId: string | undefined) {
                         /* presigned URL failed */
                     }
                 }
-                const isRunning = API_SUBMISSION_RUNNING_STATUSES.includes(sub.status);
+                const isRunning = API_SUBMISSION_RUNNING_STATUSES.has(sub.status);
                 const submissionStatus: "pass" | "fail" | "pending" = isRunning
                     ? "pending"
                     : sub.pass_fail === "unknown"

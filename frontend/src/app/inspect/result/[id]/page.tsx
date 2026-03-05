@@ -76,7 +76,7 @@ function getSeverityIcon(severity: string) {
     }
 }
 
-const API_SUBMISSION_RUNNING_STATUSES = ["running", "queued"];
+const API_SUBMISSION_RUNNING_STATUSES = new Set(["running", "queued"]);
 
 function buildResultFromApi(
     sub: ApiSubmission,
@@ -95,7 +95,7 @@ function buildResultFromApi(
             .map((a) => a.description)
             .filter(Boolean)
             .join("\n\n") || "No detailed analysis.";
-    const isRunning = API_SUBMISSION_RUNNING_STATUSES.includes(sub.status);
+    const isRunning = API_SUBMISSION_RUNNING_STATUSES.has(sub.status);
     const passFail = isRunning ? "pending" : sub.pass_fail === "unknown" ? "fail" : sub.pass_fail;
     const submission: InspectionSubmission = {
         id: sub.id,
@@ -236,7 +236,7 @@ export default function InspectResultPage() {
                     getSubmission(projectId, submissionId),
                     listAnomalies(submissionId),
                 ]);
-                if (!sub || !API_SUBMISSION_RUNNING_STATUSES.includes(sub.status)) {
+                if (!sub || !API_SUBMISSION_RUNNING_STATUSES.has(sub.status)) {
                     if (sub) {
                         let imageUrl = "";
                         try {
