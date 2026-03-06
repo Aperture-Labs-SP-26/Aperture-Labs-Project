@@ -1,4 +1,3 @@
-import uuid
 from pydantic import BaseModel, EmailStr
 
 from schemas.users import UserIdentity
@@ -15,6 +14,8 @@ class UserInfo(UserIdentity):
 
 
 class LoginResponse(BaseModel):
-    access_token: str
+    success: bool = True
+    message: str | None = None
+    access_token: str | None = None
     token_type: str = "bearer"
-    user: UserInfo
+    user: UserInfo | None = None

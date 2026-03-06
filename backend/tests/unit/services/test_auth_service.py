@@ -3,9 +3,9 @@ import uuid
 import pytest
 from unittest.mock import MagicMock, patch
 
+from core import exceptions
 from schemas.auth import LoginRequest
 from services import auth_service
-from utils.password import hash_password
 
 pytestmark = pytest.mark.unit
 
@@ -58,7 +58,7 @@ class TestAuthService:
              pytest.raises(exceptions.Unauthorized):
             auth_service.login(mock_db, payload)
 
-    @patch("services.auth_service.verify_password")
+    @patch("services.auth_service.security.verify_password")
     def test_login_verify_password_raises(self, mock_verify):
         """Test login returns invalid credentials when verify_password raises."""
         mock_user = MagicMock()

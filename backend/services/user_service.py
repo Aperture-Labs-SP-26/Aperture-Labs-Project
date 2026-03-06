@@ -50,7 +50,7 @@ def update_user(db: Session, user_id: uuid.UUID, payload: UserUpdate) -> User:
         user.email = payload.email
 
     if payload.password is not None:
-        user.password_hash = security.hash_password(payload.password)
+        user.password_hash = hash_password(payload.password)
 
     user.updated_at = datetime.now(timezone.utc)
     db.commit()

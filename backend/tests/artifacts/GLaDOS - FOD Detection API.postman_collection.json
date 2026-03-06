@@ -1114,36 +1114,78 @@
       "name": "Detection",
       "item": [
         {
-          "name": "Receive Detection Result (Webhook)",
+          "name": "Get Inspection Prompt",
           "request": {
-            "method": "POST",
+            "method": "GET",
             "header": [
               {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "x-webhook-secret",
-                "value": "your-webhook-secret-here"
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"response\": \"Detection complete\",\n  \"model\": \"detector-v1.2.0\",\n  \"inference_time_ms\": 342.5\n}"
-            },
             "url": {
-              "raw": "{{base_url}}/webhooks/detection",
+              "raw": "{{base_url}}/detect/prompt?project_id={{project_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
-                "webhooks",
-                "detection"
+                "detect",
+                "prompt"
+              ],
+              "query": [
+                {
+                  "key": "project_id",
+                  "value": "{{project_id}}",
+                  "description": "Optional — include to load design-spec PDFs from this project",
+                  "disabled": true
+                }
               ]
-            }
+            },
+            "description": "Returns the full VLM prompt (generic instructions + spec text from project PDFs) that would be used for inspection. Useful for the 'View prompt' UI popup."
           },
           "response": []
-        }
+        },
+        {
+          "name": "Run Detection (Sync)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "description": "PNG or JPEG image to inspect (max 10 MB)",
+                  "src": []
+                },
+                {
+                  "key": "project_id",
+                  "value": "{{project_id}}",
+                  "type": "text",
+                  "description": "Optional — loads design-spec PDFs for this project as context",
+                  "disabled": true
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/detect",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "detect"
+              ]
+            },
+            "description": "Upload an image for synchronous FOD detection. Returns the VLM analysis immediately. Optionally provide project_id to include design-spec context."
+          },
+          "response": []
+        },
       ]
     },
     {
