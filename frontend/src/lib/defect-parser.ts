@@ -18,7 +18,7 @@ export function normalizeSeverityToDefect(s: string | null | undefined): Defect[
 }
 
 const METADATA_LABEL_RE =
-    /^(object\s+classification|approximate\s+location|location|severity(\s+rating)?|confidence(\s+score)?|recommended\s+action)\s*[:\s]/i;
+    /^(object\s+classification|approximate\s+location|location|severity|confidence|recommended\s+action)\s*[:\s]/i;
 
 function isMetadataContent(text: string): boolean {
     const cleaned = text.trim().replace(/^(the|a|an|this)\s+/i, "");
