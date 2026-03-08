@@ -137,7 +137,12 @@ def _defect_to_query(description: str) -> str:
     # Leading \s* removed — .strip() cleans any leftover space — to avoid O(n²)
     # retry of \s* at every position when no '(' follows (ReDoS mitigation).
     description = re.sub(r"\([^)]{0,100}\)", "", description).strip()
-    description = re.sub(r"\s*\b\d+(?:\.\d+)?%(?:\s+\d+(?:\.\d+)?%)*", "", description).strip()
+    # Strip bare percentage coordinates (e.g. "19% 24.8%").
+    # Two-pass: remove each NN[.NN]% token, then normalise whitespace.
+    # Avoids \s* before a failing pattern (O(n²) in partial-match) and avoids
+    # (?:\s+...)*  outer repetition matching the same chars as leading \s*.
+    description = re.sub(r"\b\d+(?:\.\d+)?%", "", description)
+    description = " ".join(description.split()).strip()
     # Strip known metadata label prefixes before any further processing
     description = re.sub(
         r"^(object\s+classification|approximate\s+location|location|severity(\s+rating)?|"
