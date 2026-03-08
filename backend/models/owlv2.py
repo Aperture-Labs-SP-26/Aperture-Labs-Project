@@ -133,9 +133,10 @@ def image_to_base64(image: Image.Image) -> str:
 def _defect_to_query(description: str) -> str:
     """Shorten a verbose defect description into a concise OWLv2 search query."""
     # Strip position hints: parenthesised "(25%, 30%)" and bare "19% 24.8%"
-    # Use \d+(?:\.\d+)? instead of \d+\.?\d* to eliminate backtracking ambiguity
-    # between the two digit groups (ReDoS mitigation).
-    description = re.sub(r"\s*\(\d+(?:\.\d+)?%[^)]*\)", "", description).strip()
+    # Bounded [^)]{0,100} prevents polynomial backtracking in partial-match (re.sub).
+    # Leading \s* removed — .strip() cleans any leftover space — to avoid O(n²)
+    # retry of \s* at every position when no '(' follows (ReDoS mitigation).
+    description = re.sub(r"\([^)]{0,100}\)", "", description).strip()
     description = re.sub(r"\s*\b\d+(?:\.\d+)?%(?:\s+\d+(?:\.\d+)?%)*", "", description).strip()
     # Strip known metadata label prefixes before any further processing
     description = re.sub(
