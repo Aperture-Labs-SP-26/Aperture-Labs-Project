@@ -274,23 +274,32 @@ class OllamaVLM:
             )
 
     @staticmethod
-    def _prompt_rules() -> str:
+    def _format_rules() -> str:
         return (
-            "3) You must end your response with exactly one line: RESULT: PASS or RESULT: FAIL.\n\n"
-            "Do not respond with only 'RESULT: PASS' or 'RESULT: FAIL'. Always include a short description and reason."
+            "STRICT OUTPUT FORMAT — you must follow this exactly when defects are found:\n\n"
+            "CRITICAL FAILURES:\n"
+            "• <object name> at (X%, Y%)\n\n"
+            "MAJOR ISSUES:\n"
+            "• <object name> at (X%, Y%)\n\n"
+            "MINOR ISSUES:\n"
+            "• <object name> at (X%, Y%)\n\n"
+            "Rules:\n"
+            "- Use ONLY bullet points (•) under the exact headers above. Do NOT use numbered lists or prose.\n"
+            "- Each bullet must name the specific object (e.g. 'bolt', 'screw', 'cutter', 'metal fragment') "
+            "and its approximate position as (X%, Y%) where 0%,0% is top-left and 100%,100% is bottom-right.\n"
+            "- Only include severity sections that have findings. Omit empty sections.\n"
+            "- End your response with exactly one line: RESULT: PASS or RESULT: FAIL\n"
         )
 
     def _default_generic_prompt(self) -> str:
         """Generic inspection prompt when no spec is provided (versatile, not domain-specific)."""
         return (
             "You are a quality inspector. Analyze this image and determine whether it passes or fails inspection.\n\n"
-            "1) Describe what you see and whether it matches a typical inspection context (e.g. product, surface, or scene to be checked). "
-            "If the image clearly does NOT show something that can be inspected (e.g. irrelevant artwork or out-of-scope content), "
-            "briefly explain and end with: RESULT: FAIL.\n\n"
-            "2) If the image is suitable for inspection, check for defects, anomalies, or issues:\n"
-            "   - If you find NO issues: explain why it passes. End with: RESULT: PASS\n"
-            "   - If you find issues: list each defect with severity (CRITICAL FAILURES, MAJOR ISSUES, or MINOR ISSUES) and approximate position (X%, Y%). End with: RESULT: FAIL\n"
-            + self._prompt_rules()
+            "1) Briefly describe what you see.\n\n"
+            "2) Check for any defects, foreign objects, or anomalies:\n"
+            "   - If you find NO issues: briefly explain why it passes. End with: RESULT: PASS\n"
+            "   - If you find issues: use the strict format below to list each one, then end with: RESULT: FAIL\n\n"
+            + self._format_rules()
         )
 
     def _build_spec_prompt(self, spec_text: str) -> str:
@@ -300,12 +309,13 @@ class OllamaVLM:
             "--- Specification ---\n"
             f"{spec_text}\n"
             "--- End specification ---\n\n"
-            "1) Describe what you see and whether it is relevant to the specification. "
-            "If the image clearly does NOT match the inspection scope described above, briefly explain and end with: RESULT: FAIL.\n\n"
-            "2) If the image is in scope, evaluate it against the specification:\n"
-            "   - If the image meets the criteria (no defects or issues listed in the spec): explain why. End with: RESULT: PASS\n"
-            "   - If you find defects or non-conformities: list each with severity (CRITICAL FAILURES, MAJOR ISSUES, or MINOR ISSUES) and approximate position (X%, Y%). End with: RESULT: FAIL\n"
-            + self._prompt_rules()
+            "1) Briefly describe what you see and confirm it is relevant to the specification.\n"
+            "   If the image is clearly out of scope, briefly explain and end with: RESULT: FAIL\n\n"
+            "2) Evaluate the image against the specification:\n"
+            "   - If it meets all criteria: briefly explain why it passes. End with: RESULT: PASS\n"
+            "   - If defects or non-conformities are found: use the strict format below to list each one, "
+            "then end with: RESULT: FAIL\n\n"
+            + self._format_rules()
         )
 
     def _image_to_base64(self, image: Image.Image) -> str:
