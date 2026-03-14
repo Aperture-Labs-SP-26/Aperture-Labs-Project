@@ -4,228 +4,138 @@ CSCI 577A Spring 2026 Group Project
 
 Foreign Object Debris (FOD) detection using Vision Language Models.
 
----
+## Getting Started
 
-## Prerequisites
+### Backend Setup
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- Python 3.11-3.13
-- Node.js (e.g. 22.x)
-- `pip`, `npm`
+#### 1. Install Ollama
 
----
+Download from https://ollama.com
 
-## Quick Start
-
-### [Linux/macOS]
+#### 2. Pull the model and start server
 
 ```bash
-make run
+ollama pull qwen2.5vl:7b
+ollama serve
 ```
 
-Or directly:
-```bash
-chmod +x run.sh && ./run.sh
-```
+#### 3. Setup backend (first time only)
 
-**Stop:** Press `Ctrl+C` to stop backend/frontend. Run `make kill` to also stop Docker.
-
-### [Windows]
-
-First, install GNU Make (one-time setup):
-```powershell
-# Run PowerShell as Administrator
-choco install make
-```
-
-Then run:
-```cmd
-make run
-```
-
-Or directly (no make required):
-```cmd
-.\run.bat
-```
-
-**Stop:** Close the spawned command windows, or run `make kill` (or `.\kill.bat`).
-
----
-
-## What `make run` does
-
-1. Starts Docker containers (Postgres + MinIO)
-2. Creates `backend/.env` if missing
-3. Sets up Python venv and installs dependencies
-4. Starts backend API at **http://127.0.0.1:8000**
-5. Starts frontend dev server at **http://localhost:3998**
-
-**Log in:** `test@example.com` / `test`
-(Other users: alice/bob/carol with password `password123`)
-
-**Stop everything:** `make kill` — stops backend, frontend, Ollama, and Docker (keeps DB).
-**Stop + reset DB:** `make kill-reset` — same as above and removes Docker volumes (fresh DB on next run).
-
----
-
-## Troubleshooting
-
-**"make: command not found" or "make is not recognized"?**
-
-| OS | Solution |
-|----|----------|
-| **Windows** | Install make via Chocolatey: `choco install make` (run PowerShell as Admin), then restart your terminal. Or skip make and run `.\run.bat` directly. |
-| **macOS** | Install Xcode Command Line Tools: `xcode-select --install` |
-| **Linux** | Install build-essential: `sudo apt install build-essential` (Debian/Ubuntu) or `sudo dnf install make` (Fedora) |
-
-**[Windows] make is installed but still not found?** Add it to your PATH:
-
-1. Find where make is installed:
-   - Chocolatey: `C:\ProgramData\chocolatey\bin` (or `/c/ProgramData/chocolatey/bin` in Git Bash)
-   - GnuWin32: `C:\Program Files (x86)\GnuWin32\bin`
-   - MinGW: `C:\MinGW\bin` (may be named `mingw32-make.exe`)
-
-2. Add to PATH:
-   - Press `Win + R`, type `sysdm.cpl`, press Enter
-   - Go to **Advanced** tab → **Environment Variables**
-   - Under "User variables", select **Path** → **Edit** → **New**
-   - Paste the path (e.g., `C:\ProgramData\chocolatey\bin`)
-   - Click **OK** on all dialogs
-
-3. Restart your terminal and try `make run` again
-
-**If `make run` fails**, use the [step-by-step instructions](#step-by-step-if-one-command-doesnt-work) below.
-
-**"Cannot reach the backend"?** The frontend calls `http://localhost:8000`. Ensure backend is running. On Windows, keep the spawned command windows open.
-
----
-
-## Optional: Ollama (real VLM detection)
-
-For live FOD detection instead of mock results, install [Ollama](https://ollama.com).
-
-`./run.sh` (and `make run`) will automatically start Ollama and pull `qwen2.5vl:7b` if Ollama is installed. If it's not installed, the app falls back to mock detection responses.
-
----
-
-## Step-by-step (if one command doesn't work)
-
-Use these steps if `make run` or `run.bat` fails. Run each step in order; use **two terminals** for backend and frontend.
-
-### 1. Environment
-
-Ensure `backend/.env` exists. If not, create it with these contents:
-
-```
-DATABASE_URL=postgresql://user:pass@127.0.0.1:5434/appdb
-MINIO_ENDPOINT=localhost:9002
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=minioadmin
-MINIO_BUCKET_DESIGNS=designs
-MINIO_BUCKET_IMAGES=images
-MINIO_USE_SSL=false
-DETECTION_WEBHOOK_SECRET=dev-webhook-secret
-```
-
-### 2. Docker
-
-Start Postgres and MinIO:
-
-```bash
-docker compose up -d
-```
-
-### 3. Backend (Terminal 1)
-
-#### [Linux/macOS]
 ```bash
 cd backend
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload --host 127.0.0.1 --port 8000
+setup.bat
 ```
 
-#### [Windows - Command Prompt]
-```cmd
+#### 4. Run the server
+
+```bash
 cd backend
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn main:app --reload --host 127.0.0.1 --port 8000
+run.bat
 ```
 
-#### [Windows - PowerShell]
-```powershell
-cd backend
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-uvicorn main:app --reload --host 127.0.0.1 --port 8000
-```
+### Frontend Setup
 
-Leave this terminal running.
-- API: http://127.0.0.1:8000
-- Swagger: http://127.0.0.1:8000/docs
+#### 1. Install Node.js
 
-### 4. Frontend (Terminal 2)
+Ensure you have Node.js 22.13.0 (LTS). Use nvm to install or switch versions; run `nvm use` from the frontend directory.
+
+#### 2. Install packages
 
 ```bash
 cd frontend
 npm install
+```
+
+#### 3. Run the development server
+```bash
 npm run dev
 ```
 
-- App: http://localhost:3998
-- Log in: `test@example.com` / `test`
+Open [http://localhost:3998](http://localhost:3998) with your browser to see the result.
 
----
+See [frontend/README.md](frontend/README.md) for more details.
 
-## Code quality
+## API
 
-SonarQube: https://sonarcloud.io/project/overview?id=Aperture-Labs-SP-26_Aperture-Labs-Project
+Can use Swagger UI: http://localhost:8000/docs or commands below
 
----
+### `POST /api/login`
 
-## Running tests
+Authenticate a user with username and password.
 
-From the project root:
-
-```bash
-make test        # full suite
-make test-unit   # unit tests only
+**Test with curl (Windows):**
+```powershell
+curl.exe --% -X POST http://localhost:8000/api/login -H "Content-Type: application/json" -d "{\"username\":\"test\",\"password\":\"test\"}"
 ```
 
-Or manually from `backend/` with venv active:
-
-#### [Linux/macOS]
-```bash
-cd backend
-source venv/bin/activate
-pytest
+**Response:**
+```json
+{"success":true,"user":{"username":"test"},"message":"Login successful"}
 ```
 
-#### [Windows]
-```cmd
-cd backend
-venv\Scripts\activate
-pytest
+### `POST /api/detect`
+
+Upload an image to detect FOD. Returns location and description of any FOD found.
+
+**Test with curl (Windows):**
+```powershell
+curl.exe -X POST "http://localhost:8000/api/detect" -F "file=@data/FOD_pictures/bolt_in_front_of_plane.png"
 ```
 
----
+**Response:**
+`{"response":"In the image, there is a visible Foreign Object Debris (FOD) item in the foreground. Here is the description:\n\n- **Item**: The item appears to be a cylindrical object with markings that read \"48 FW - GOLDEN BOLT.\" It looks like a spent cartridge or a similar type of ammunition casing.\n- **Location**: It is lying on the ground in the foreground, closer to the bottom left corner of the image.\n\nThis item is likely FOD and should be removed to ensure safety and operational readiness."}`
 
-## Teardown
+### `POST /api/projects/create`
 
-| Action | Linux/macOS | Windows |
-|--------|-------------|---------|
-| Stop backend/frontend | `Ctrl+C` | Close command windows |
-| Stop everything | `make kill` | `make kill` or `.\kill.bat` |
-| Stop + reset DB | `make kill-reset` | `make kill-reset` or `.\kill.bat -reset` |
-| Stop Docker only | `docker compose down` | `docker compose down` |
-| Reset DB + storage | `docker compose down -v` | `docker compose down -v` |
+Create a new project. Required before uploading images.
 
----
+**Test with curl (Windows):**
+```powershell
+curl.exe --% -X POST http://localhost:8000/api/projects/create -H "Content-Type: application/json" -d "{\"name\":\"TestProject\"}"
+```
 
-## Frontend details
+**Response:**
+```json
+{"id":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","name":"TestProject","created_at":"2026-02-21T12:00:00","design_specs":[]}
+```
 
-See [frontend/README.md](frontend/README.md) for scripts, env (`NEXT_PUBLIC_API_URL`), and port (3998).
+### `GET /api/projects/list`
+
+List all projects.
+
+**Test with curl (Windows):**
+```powershell
+curl.exe -X GET "http://localhost:8000/api/projects/list"
+```
+
+### `POST /api/upload/image`
+
+Upload an image to MinIO storage. Requires a valid project ID.
+
+**Step 1: Create a project (see above) and copy the `id` from the response.**
+
+**Step 2: Upload image using the project ID:**
+```powershell
+curl.exe -X POST "http://localhost:8000/api/upload/image?project_id=YOUR_PROJECT_ID" -F "file=@data/FOD_pictures/bolt_in_front_of_plane.png"
+```
+
+**Response:**
+```json
+{"filename":"bolt_in_front_of_plane.png","project_id":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","object_key":"a1b2c3d4-e5f6-7890-abcd-ef1234567890/bolt_in_front_of_plane.png"}
+```
+
+## Using docker to spin up the database containers
+
+#### 1. Make sure you have docker desktop installed.
+#### 2. Install docker cli.
+#### 3. Spin up containers
+
+    docker compose up -d
+
+This will create two containers. One contains the postgres database, the other holds the minio storage. In the /backend/db/init.sql, two tables are created in the postgres db. One for `users` and the other for `fod_detection` (subject to change.) Database information will persist unless the volumes are deleted.
+
+#### 4. To stop running containers (not remove volume)
+    docker compose stop
+
+#### 5. To remove the containers and remove the volumes:
+    docker compose down -v
