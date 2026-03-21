@@ -104,7 +104,7 @@ class TestRunDetection:
         result = _make_result(pass_fail="fail", defects=[defect], response="RESULT: FAIL")
         self._call(submission=submission, result=result)
 
-        assert submission.status == "complete"
+        assert submission.status == "failed"
         assert submission.pass_fail == "fail"
         assert submission.anomaly_count == 1
 
@@ -134,7 +134,7 @@ class TestRunDetection:
             mock_load_img.assert_not_called()
             mock_get_model.assert_not_called()
 
-    def test_exception_marks_submission_failed(self):
+    def test_exception_marks_submission_error(self):
         submission = _make_submission()
         mock_db = MagicMock()
         mock_db.get.return_value = submission
@@ -146,7 +146,7 @@ class TestRunDetection:
         ):
             detection_service._run_detection(SUBMISSION_ID, PROJECT_ID, IMAGE_KEY)
 
-        assert submission.status == "failed"
+        assert submission.status == "error"
         assert "minio down" in submission.error_message
 
     def test_db_session_always_closed(self):
@@ -405,7 +405,7 @@ class TestMarkFailed:
 
         detection_service._mark_failed(mock_db, SUBMISSION_ID, RuntimeError("something broke"))
 
-        assert submission.status == "failed"
+        assert submission.status == "error"
         assert "something broke" in submission.error_message
         mock_db.commit.assert_called_once()
 
