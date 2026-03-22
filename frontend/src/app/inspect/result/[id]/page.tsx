@@ -97,6 +97,22 @@ function getSeverityIcon(severity: string) {
 
 const API_SUBMISSION_RUNNING_STATUSES = new Set(["running", "queued"]);
 
+function deriveOverallStatus(submissions: InspectionSubmission[]): string {
+    if (submissions.some((s) => s.status === "fail")) return "FAIL";
+    if (submissions.some((s) => s.status === "timeout")) return "TIMEOUT";
+    if (submissions.some((s) => s.status === "error")) return "ERROR";
+    return "PASS";
+}
+
+function getOverallStatusClass(status: string): string {
+    switch (status) {
+        case "FAIL":    return "bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400";
+        case "TIMEOUT": return "bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400";
+        case "ERROR":   return "bg-orange-100 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400";
+        default:        return "bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-400";
+    }
+}
+
 function buildResultFromApi(
     sub: ApiSubmission,
     anomalies: Awaited<ReturnType<typeof listAnomalies>>,
@@ -365,17 +381,8 @@ export default function InspectResultPage() {
             ? submissions[0].designSpec
             : (currentProject?.designSpecs ?? []);
     const today = formatDateLong(result.timestamp);
-    const overallStatus = submissions.some((s) => s.status === "fail")
-        ? "FAIL"
-        : submissions.some((s) => s.status === "timeout")
-        ? "TIMEOUT"
-        : submissions.some((s) => s.status === "error")
-        ? "ERROR"
-        : "PASS";
-    let overallStatusClass = "bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-400";
-    if (overallStatus === "FAIL")    overallStatusClass = "bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400";
-    if (overallStatus === "TIMEOUT") overallStatusClass = "bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400";
-    if (overallStatus === "ERROR")   overallStatusClass = "bg-orange-100 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400";
+    const overallStatus = deriveOverallStatus(submissions);
+    const overallStatusClass = getOverallStatusClass(overallStatus);
 
     const totalDefects = submissions.reduce((sum, s) => sum + s.defects.length, 0);
     const criticalCount = submissions.reduce(
