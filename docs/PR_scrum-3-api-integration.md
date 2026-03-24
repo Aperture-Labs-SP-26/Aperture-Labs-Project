@@ -38,10 +38,9 @@ So: **no breaking changes** to existing routes; this PR adds the **sync** detect
 | Module | Purpose |
 |--------|--------|
 | **`routers/detect.py`** | Defines `POST /detect` and `GET /detect/prompt`; image validation/resize, MinIO spec loading, VLM/mock call. |
-| **`schemas/detection.py`** | Pydantic models: `DetectionResponse`, `DefectSchema`, `DefectLocation` for the detection API response. |
+| **`schemas/detection.py`** | Pydantic models: `DetectionResponse`, `DefectSchema` for the detection API response. |
 | **`models/ollama_vlm.py`** | Ollama VLM client: `detect_fod()`, prompt building (generic + spec), pass/fail and defect parsing from VLM text; `get_mock_detection_response()` when Ollama is down. |
 | **`utils/pdf_extract.py`** | `extract_text_from_pdf(pdf_bytes)` — used to pull design-spec text from PDFs in MinIO for VLM prompts. |
-| **`services/severity_mapping.py`** | Maps VLM severity (critical/major/minor) to API/DB severity (high/med/low). For use when writing detection results into `Anomaly` records (e.g. future webhook or sync-to-DB path). |
 | **`seed_data.py`** | **Startup seed (MinIO only):** Ensure bucket for demo project, upload design-spec PDF + sample FOD image. No automatic VLM analysis at startup; inspections run only when the user uploads an image and runs analysis from the UI. Idempotent (skips if data already present). |
 
 #### Backend app wiring
@@ -87,11 +86,33 @@ So: **no breaking changes** to existing routes; this PR adds the **sync** detect
 
 ## Files
 
-52+ files changed.
+### New files
 
-**New:** `run.sh`; `backend/routers/detect.py`, `backend/seed_data.py`, `backend/services/severity_mapping.py`, `backend/utils/pdf_extract.py`; `frontend/hooks/useInspectionHistory.ts`, DesignSpecLink, DesignSpecPreview, InspectionHistoryList, alert, loading-spinner, icon.
+| File | Purpose |
+|------|---------|
+| `frontend/src/components/ui/toast.tsx` | `ToastItem` and `ToastContainer` UI components; slide-in/slide-out animation classes; variant icons (success/error/warning/info) |
+| `frontend/src/context/ToastContext.tsx` | `ToastProvider` context and `useToast()` hook; 5s auto-dismiss; 220ms exit-animation delay before DOM removal |
+| `frontend/src/app/globals.css` *(keyframes)* | `@keyframes toast-in` / `toast-out` and `.toast-enter` / `.toast-exit` CSS classes for slide animations |
+| `frontend/src/__tests__/toast.test.tsx` | Unit tests for `ToastItem` and `ToastContainer` (render, dismiss, variants) |
+| `frontend/src/__tests__/ToastContext.test.tsx` | Unit tests for `ToastProvider` / `useToast` (add, stack, auto-dismiss, manual dismiss, outside-provider error) |
+| `frontend/src/__tests__/useInspectionHistory.test.ts` | Unit tests for status transition detection in `useInspectionHistory` (Req 8–10: notify on complete/failed/error/timeout; `__new__` sentinel; polling stop/resume) |
+| `frontend/src/__tests__/login.test.tsx` | Unit tests for login page (Req 1, 11) |
+| `frontend/src/__tests__/inspect-upload.test.tsx` | Unit tests for upload page (Req 2, 4) |
+| `frontend/src/__tests__/projects.test.tsx` | Unit tests for projects page (Req 3, 12, 13) |
+| `frontend/src/__tests__/result.test.tsx` | Unit tests for inspect result page (Req 5, 6, 7) |
+| `frontend/vitest.config.ts` | Vitest configuration (jsdom environment, `@` path alias, setup file) |
+| `frontend/vitest.setup.ts` | Global test setup: imports `@testing-library/jest-dom` matchers |
 
-**Updated:** README, Makefile; backend `main.py`, routers/services/schemas/db/tests; frontend app/components/lib.
+### Modified files
+
+| File | Change |
+|------|--------|
+| `frontend/src/hooks/useInspectionHistory.ts` | Added `StatusChangeEvent` type and optional `onStatusChange` callback; `prevStatuses` ref tracks last-seen status per submission; `isInitialized` ref suppresses callbacks on first load |
+| `frontend/src/components/InspectHistorySidebar.tsx` | Wired `useToast` + `handleStatusChange` callback into `useInspectionHistory`; fires info/success/warning/error toasts on job status transitions |
+| `frontend/src/app/ClientRoot.tsx` | Wrapped app with `<ToastProvider>` so toasts are available globally |
+| `frontend/package.json` | Added `test` / `test:watch` scripts; added dev deps: `vitest`, `@vitejs/plugin-react`, `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`, `jsdom` |
+| `frontend/package-lock.json` | Lockfile updated for new test dependencies |
+| `README.md` | Resolved merge conflict (kept comprehensive `run.sh` / `make run` docs) |
 
 ---
 
