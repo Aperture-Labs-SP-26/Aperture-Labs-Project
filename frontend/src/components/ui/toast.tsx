@@ -10,6 +10,7 @@ export type Toast = {
     title: string;
     description?: string;
     variant: ToastVariant;
+    removing?: boolean;
 };
 
 const ICONS: Record<ToastVariant, React.ReactNode> = {
@@ -36,6 +37,7 @@ export function ToastItem({
             className={cn(
                 "flex items-start gap-3 p-4 rounded-lg border bg-white dark:bg-zinc-900 shadow-lg w-80",
                 BORDER[toast.variant],
+                toast.removing ? "toast-exit" : "toast-enter",
             )}
         >
             {ICONS[toast.variant]}

@@ -55,7 +55,7 @@ describe("ToastProvider / useToast", () => {
         fireEvent.click(screen.getByRole("button", { name: "Add Toast" }));
         expect(screen.getByText("Auto gone")).toBeInTheDocument();
         act(() => {
-            vi.advanceTimersByTime(5001);
+            vi.advanceTimersByTime(5001 + 220); // 5s auto-dismiss + 220ms exit animation
         });
         expect(screen.queryByText("Auto gone")).not.toBeInTheDocument();
     });
@@ -76,6 +76,7 @@ describe("ToastProvider / useToast", () => {
         fireEvent.click(screen.getByRole("button", { name: "Add Toast" }));
         expect(screen.getByText("Manual dismiss")).toBeInTheDocument();
         fireEvent.click(screen.getByRole("button", { name: /dismiss/i }));
+        act(() => { vi.advanceTimersByTime(220); }); // wait for exit animation
         expect(screen.queryByText("Manual dismiss")).not.toBeInTheDocument();
     });
 

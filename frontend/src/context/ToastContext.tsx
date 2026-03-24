@@ -25,7 +25,13 @@ export function ToastProvider({ children }: Readonly<{ children: React.ReactNode
         const timer = timers.current.get(id);
         if (timer !== undefined) clearTimeout(timer);
         timers.current.delete(id);
-        setToasts((prev) => prev.filter((t) => t.id !== id));
+        // Mark as removing so the exit animation plays, then remove from DOM
+        setToasts((prev) => prev.map((t) => t.id === id ? { ...t, removing: true } : t));
+        const exitTimer = setTimeout(
+            () => setToasts((prev) => prev.filter((t) => t.id !== id)),
+            220,
+        );
+        timers.current.set(`${id}-exit`, exitTimer);
     }, []);
 
     const addToast = useCallback(
