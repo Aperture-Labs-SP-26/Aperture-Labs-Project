@@ -42,12 +42,10 @@ def create_project(
 # -------------------------
 @router.get("", response_model=List[ProjectRead])
 def list_projects(
-    include_archived: bool = False,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db)
 ):
     return project_service.list_projects_for_user(
-        db=db,
-        include_archived=include_archived,
+        db=db
     )
 
 

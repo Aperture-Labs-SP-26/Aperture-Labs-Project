@@ -59,7 +59,6 @@ type ApiProject = {
     name: string;
     created_at: string;
     updated_at: string;
-    archived_at?: string | null;
 };
 
 function makeApiProject(overrides: Partial<ApiProject> = {}): ApiProject {
@@ -68,7 +67,6 @@ function makeApiProject(overrides: Partial<ApiProject> = {}): ApiProject {
         name: "My Project",
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-01T00:00:00Z",
-        archived_at: null,
         ...overrides,
     };
 }
@@ -216,61 +214,5 @@ describe("ProjectsPage — Req 12: group artifacts by project", () => {
         render(<ProjectsPage />);
         await waitFor(() => expect(screen.getByText("Alpha Project")).toBeInTheDocument());
         expect(screen.getByText("Beta Project")).toBeInTheDocument();
-    });
-
-    it("archived projects show an 'Archived' badge", async () => {
-        mockListProjects.mockResolvedValue([
-            makeApiProject({ id: "p1", name: "Old Project", archived_at: "2026-01-15T00:00:00Z" }),
-        ]);
-        mockListDesignSpecs.mockResolvedValue([]);
-
-        render(<ProjectsPage />);
-        // Switch to "All" tab so archived projects are visible
-        await waitFor(() => expect(screen.getByRole("button", { name: /^all$/i })).toBeInTheDocument());
-        await userEvent.click(screen.getByRole("button", { name: /^all$/i }));
-        await waitFor(() => expect(screen.getByText("Old Project")).toBeInTheDocument());
-        expect(screen.getByText("Archived")).toBeInTheDocument();
-    });
-
-    it("filter tabs exist for active, archived, and all", async () => {
-        mockListProjects.mockResolvedValue([makeApiProject()]);
-        mockListDesignSpecs.mockResolvedValue([]);
-
-        render(<ProjectsPage />);
-        await waitFor(() => expect(screen.getByRole("button", { name: /^active$/i })).toBeInTheDocument());
-        expect(screen.getByRole("button", { name: /^archived$/i })).toBeInTheDocument();
-        expect(screen.getByRole("button", { name: /^all$/i })).toBeInTheDocument();
-    });
-
-    it("clicking 'archived' filter hides active projects and shows archived ones", async () => {
-        mockListProjects.mockResolvedValue([
-            makeApiProject({ id: "p1", name: "Active Project", archived_at: null }),
-            makeApiProject({ id: "p2", name: "Archived Project", archived_at: "2026-01-15T00:00:00Z" }),
-        ]);
-        mockListDesignSpecs.mockResolvedValue([]);
-
-        render(<ProjectsPage />);
-        await waitFor(() => expect(screen.getByText("Active Project")).toBeInTheDocument());
-
-        await userEvent.click(screen.getByRole("button", { name: /^archived$/i }));
-
-        expect(screen.queryByText("Active Project")).not.toBeInTheDocument();
-        expect(screen.getByText("Archived Project")).toBeInTheDocument();
-    });
-
-    it("clicking 'all' filter shows both active and archived projects", async () => {
-        mockListProjects.mockResolvedValue([
-            makeApiProject({ id: "p1", name: "Active Project", archived_at: null }),
-            makeApiProject({ id: "p2", name: "Archived Project", archived_at: "2026-01-15T00:00:00Z" }),
-        ]);
-        mockListDesignSpecs.mockResolvedValue([]);
-
-        render(<ProjectsPage />);
-        await waitFor(() => expect(screen.getByText("Active Project")).toBeInTheDocument());
-
-        await userEvent.click(screen.getByRole("button", { name: /^all$/i }));
-
-        expect(screen.getByText("Active Project")).toBeInTheDocument();
-        expect(screen.getByText("Archived Project")).toBeInTheDocument();
     });
 });
