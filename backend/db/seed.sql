@@ -39,7 +39,7 @@ INSERT INTO users (
 -- projects
 INSERT INTO projects (
     id, name, description, created_by_user_id,
-    created_at, updated_at, archived_at, detector_version
+    created_at, updated_at, detector_version
 ) VALUES
 (
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
@@ -48,7 +48,6 @@ INSERT INTO projects (
     '11111111-1111-1111-1111-111111111111',
     NOW(),
     NOW(),
-    NULL,
     'detector-v1.2.0'
 );
 

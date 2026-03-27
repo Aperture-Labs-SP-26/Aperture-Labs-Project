@@ -17,7 +17,6 @@ CREATE TABLE projects (
     created_by_user_id UUID NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    archived_at TIMESTAMPTZ,
     deleted_at TIMESTAMPTZ,
     detector_version VARCHAR,
 
@@ -61,6 +60,7 @@ CREATE TABLE submissions (
     pass_fail VARCHAR NOT NULL,
     anomaly_count INT,
     error_message TEXT,
+    annotated_image TEXT,
 
     CONSTRAINT fk_submissions_project
         FOREIGN KEY (project_id)

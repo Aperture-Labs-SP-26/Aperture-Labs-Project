@@ -82,7 +82,6 @@ class Project(Base):
         server_default=text("NOW()"),
         onupdate=datetime.utcnow,
     )
-    archived_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
     deleted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
     detector_version: Mapped[str | None] = mapped_column(String)
 
@@ -161,6 +160,7 @@ class Submission(Base):
     pass_fail: Mapped[str] = mapped_column(String, nullable=False)
     anomaly_count: Mapped[int | None] = mapped_column(Integer)
     error_message: Mapped[str | None] = mapped_column(Text)
+    annotated_image: Mapped[str | None] = mapped_column(Text)
 
     __table_args__ = (
         CheckConstraint(
