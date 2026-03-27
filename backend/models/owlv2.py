@@ -47,7 +47,12 @@ class OWLv2Detector:
         import torch
         from transformers import Owlv2ForObjectDetection, Owlv2Processor
 
-        self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        if torch.cuda.is_available():
+            self._device = torch.device("cuda")
+        elif torch.backends.mps.is_available():
+            self._device = torch.device("mps")
+        else:
+            self._device = torch.device("cpu")
         logger.info("Loading OWLv2 model: %s on %s (first-run download may take a moment)", self.model_id, self._device)
         self._processor = Owlv2Processor.from_pretrained(self.model_id)
         self._model = Owlv2ForObjectDetection.from_pretrained(self.model_id)
