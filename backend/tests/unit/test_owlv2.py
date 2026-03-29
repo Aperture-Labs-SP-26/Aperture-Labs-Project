@@ -21,7 +21,7 @@ pytestmark = pytest.mark.unit
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _defect(description: str, severity: str = "major") -> DefectSchema:
+def _defect(description: str, severity: str = "fod") -> DefectSchema:
     return DefectSchema(id="DEF-001", severity=severity, description=description)
 
 
@@ -143,32 +143,32 @@ class TestDefectToQuery:
 
 class TestBuildQueriesAndSeverityMap:
     def test_single_defect(self):
-        defects = [_defect("loose bolt on runway", "critical")]
+        defects = [_defect("loose bolt on runway", "fod")]
         queries, smap = build_queries_and_severity_map(defects)
         assert len(queries) == 1
         assert "bolt" in queries[0]
-        assert smap[0] == "critical"
+        assert smap[0] == "fod"
 
     def test_deduplicates_identical_descriptions(self):
         defects = [
-            _defect("loose bolt", "critical"),
-            _defect("loose bolt", "major"),
+            _defect("loose bolt", "fod"),
+            _defect("loose bolt", "fod"),
         ]
         queries, smap = build_queries_and_severity_map(defects)
         assert len(queries) == 1
 
     def test_multiple_distinct_defects(self):
         defects = [
-            _defect("loose bolt", "critical"),
-            _defect("rubber debris", "major"),
+            _defect("loose bolt", "fod"),
+            _defect("rubber debris", "fod"),
         ]
         queries, smap = build_queries_and_severity_map(defects)
         assert len(queries) == 2
-        assert smap[0] == "critical"
-        assert smap[1] == "major"
+        assert smap[0] == "fod"
+        assert smap[1] == "fod"
 
     def test_skips_empty_query_from_metadata_only(self):
-        defects = [_defect("Confidence score: 1.0", "major")]
+        defects = [_defect("Confidence score: 1.0", "fod")]
         queries, smap = build_queries_and_severity_map(defects)
         assert queries == []
         assert smap == {}
@@ -180,9 +180,9 @@ class TestBuildQueriesAndSeverityMap:
 
     def test_severity_map_indices_match_queries(self):
         defects = [
-            _defect("bolt fragment", "critical"),
-            _defect("rubber strip", "minor"),
-            _defect("plastic cap", "major"),
+            _defect("bolt fragment", "fod"),
+            _defect("rubber strip", "fod"),
+            _defect("plastic cap", "fod"),
         ]
         queries, smap = build_queries_and_severity_map(defects)
         assert len(queries) == len(smap)
@@ -253,7 +253,7 @@ class TestOWLv2DetectorAnnotate:
         self._mock_processor(detector, [[10.0, 10.0, 80.0, 80.0]], [0.9], [0])
         with patch("torch.no_grad"), patch("torch.tensor") as mt:
             mt.return_value = MagicMock()
-            result = detector.annotate(img, ["bolt"], severity_map={0: "critical"})
+            result = detector.annotate(img, ["bolt"], severity_map={0: "fod"})
         assert result is not img
         assert result.size == img.size
 
@@ -286,10 +286,8 @@ class TestOWLv2DetectorAnnotate:
 # ── Severity colour mapping ───────────────────────────────────────────────────
 
 class TestSeverityColors:
-    def test_known_severities_have_colors(self):
-        assert "critical" in _SEVERITY_COLORS
-        assert "major" in _SEVERITY_COLORS
-        assert "minor" in _SEVERITY_COLORS
+    def test_fod_has_color(self):
+        assert "fod" in _SEVERITY_COLORS
 
     def test_unknown_severity_falls_back_to_default(self):
         assert _DEFAULT_COLOR not in _SEVERITY_COLORS.values()

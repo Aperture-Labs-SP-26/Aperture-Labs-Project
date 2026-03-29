@@ -56,13 +56,12 @@ class TestParseDefectsFromResponse:
         assert defects[0].severity == "fod"
         assert "defect" in defects[0].description.lower() or "first" in defects[0].description.lower()
 
-    def test_parses_legacy_critical_and_major_bullets(self):
-        text = """CRITICAL FAILURES:
+    def test_parses_fod_detected_section(self):
+        text = """FOD DETECTED:
 • First defect description
-MAJOR ISSUES:
 • Second defect"""
         defects = _parse_defects_from_response(text)
-        assert len(defects) >= 1
+        assert len(defects) == 2
         assert defects[0].severity == "fod"
 
     def test_fallback_defect_when_fod_mentioned(self):
@@ -239,7 +238,7 @@ class TestParseDefectsMetadataFiltering:
 
     def test_skips_confidence_score_bullet(self):
         text = (
-            "CRITICAL FAILURES:\n"
+            "FOD DETECTED:\n"
             "• Bolt detected on runway\n"
             "• Confidence score: 1.0\n"
         )
@@ -249,7 +248,7 @@ class TestParseDefectsMetadataFiltering:
 
     def test_skips_object_classification_bullet(self):
         text = (
-            "CRITICAL FAILURES:\n"
+            "FOD DETECTED:\n"
             "• Object classification: Bolt\n"
         )
         defects = _parse_defects_from_response(text)
@@ -259,7 +258,7 @@ class TestParseDefectsMetadataFiltering:
 
     def test_skips_severity_rating_bullet(self):
         text = (
-            "MAJOR ISSUES:\n"
+            "FOD DETECTED:\n"
             "• Rubber debris on apron\n"
             "• Severity rating: HIGH\n"
         )
@@ -269,7 +268,7 @@ class TestParseDefectsMetadataFiltering:
 
     def test_skips_recommended_action_bullet(self):
         text = (
-            "MAJOR ISSUES:\n"
+            "FOD DETECTED:\n"
             "• Metal fragment near taxiway\n"
             "• Recommended action: remove immediately\n"
         )
@@ -280,7 +279,7 @@ class TestParseDefectsMetadataFiltering:
     def test_sentence_form_confidence_score_skipped(self):
         """'The confidence score for this detection is 1.0' must not become a defect."""
         text = (
-            "CRITICAL FAILURES:\n"
+            "FOD DETECTED:\n"
             "• Bolt is a critical hazard\n"
             "• The confidence score for this detection is 1.0\n"
         )
@@ -290,7 +289,7 @@ class TestParseDefectsMetadataFiltering:
 
     def test_multiple_metadata_bullets_produce_single_defect(self):
         text = (
-            "CRITICAL FAILURES:\n"
+            "FOD DETECTED:\n"
             "• Loose hardware detected\n"
             "• Object classification: Bolt\n"
             "• Approximate location: 20% X, 50% Y\n"
@@ -304,7 +303,7 @@ class TestParseDefectsMetadataFiltering:
 
     def test_description_cleaned_of_metadata_prefix(self):
         text = (
-            "CRITICAL FAILURES:\n"
+            "FOD DETECTED:\n"
             "• Object classification: Loose bolt\n"
         )
         defects = _parse_defects_from_response(text)

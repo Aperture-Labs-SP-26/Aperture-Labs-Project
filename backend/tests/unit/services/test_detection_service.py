@@ -99,7 +99,7 @@ class TestRunDetection:
         defect = MagicMock()
         defect.id = "DEF-001"
         defect.description = "bolt on runway"
-        defect.severity = "critical"
+        defect.severity = "fod"
 
         submission = _make_submission()
         result = _make_result(pass_fail="fail", defects=[defect], response="RESULT: FAIL")
@@ -334,7 +334,7 @@ class TestLoadSpecText:
 
 class TestBuildAnomalies:
 
-    def _make_defect(self, defect_id="DEF-1", severity="critical", description="A bolt"):
+    def _make_defect(self, defect_id="DEF-1", severity="fod", description="A bolt"):
         d = MagicMock()
         d.id = defect_id
         d.severity = severity
@@ -352,15 +352,13 @@ class TestBuildAnomalies:
         assert db.add.call_count == 2
 
     def test_all_fod_anomalies_stored_as_high(self):
-        """Any FOD detection is a failure — all anomalies are stored with 'high' severity."""
+        """Any FOD detection is a failure — all anomalies are stored with 'fod' severity."""
         db = MagicMock()
         submission = _make_submission()
-        for sev in ("fod", "critical", "major", "minor", "extreme"):
-            db.reset_mock()
-            result = _make_result(pass_fail="fail", defects=[self._make_defect(severity=sev)])
-            detection_service._build_anomalies(db, submission, result)
-            anomaly = db.add.call_args[0][0]
-            assert anomaly.severity == "high", f"Expected 'high' for severity={sev!r}"
+        result = _make_result(pass_fail="fail", defects=[self._make_defect(severity="fod")])
+        detection_service._build_anomalies(db, submission, result)
+        anomaly = db.add.call_args[0][0]
+        assert anomaly.severity == "fod"
 
     def test_long_description_truncated_to_500(self):
         db = MagicMock()
@@ -383,7 +381,7 @@ class TestBuildAnomalies:
         assert count == 1
         anomaly = db.add.call_args[0][0]
         assert anomaly.label == "foreign_object"
-        assert anomaly.severity == "high"
+        assert anomaly.severity == "fod"
 
     def test_defect_uses_id_as_label(self):
         db = MagicMock()

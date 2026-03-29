@@ -139,7 +139,7 @@ export type ApiAnomaly = {
     submission_id: string;
     label: string;
     description: string | null;
-    severity: "low" | "med" | "high" | null;
+    severity: "fod" | null;
     confidence: number | null;
     created_at: string;
 };

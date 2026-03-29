@@ -36,13 +36,8 @@ export function parseDefectsFromResponse(response: string): Defect[] {
         const line = lines[i];
         const lower = line.toLowerCase();
 
-        // Detect FOD section headers (new format and legacy)
-        if (
-            (lower.includes("fod detected") && lower.includes(":")) ||
-            (lower.includes("critical") && (lower.includes("failure") || lower.includes(":"))) ||
-            (lower.includes("major") && (lower.includes("issue") || lower.includes(":"))) ||
-            (lower.includes("minor") && (lower.includes("issue") || lower.includes(":")))
-        ) {
+        // Detect the FOD DETECTED section header
+        if (lower.includes("fod detected") && lower.includes(":")) {
             inFodSection = true;
             continue;
         }

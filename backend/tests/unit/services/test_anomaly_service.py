@@ -22,7 +22,7 @@ class TestAnomalyService:
         payload = AnomalyCreate(
             submission_id=submission_id,
             label="scratch",
-            severity="high",
+            severity="fod",
             confidence=0.95,
         )
         anomaly_service.create_anomaly(mock_db, payload)
@@ -41,7 +41,7 @@ class TestAnomalyService:
         payload = AnomalyCreate(
             submission_id=uuid.uuid4(),
             label="scratch",
-            severity="low",
+            severity="fod",
             confidence=0.5,
         )
 
@@ -92,7 +92,7 @@ class TestAnomalyService:
         mock_db = MagicMock()
         mock_db.query.return_value.filter.return_value.first.return_value = mock_anomaly
 
-        payload = AnomalyUpdate(severity="high", confidence=0.99)
+        payload = AnomalyUpdate(severity="fod", confidence=0.99)
         anomaly_service.update_anomaly(mock_db, uuid.uuid4(), payload)
 
         assert mock_anomaly.severity == "high"

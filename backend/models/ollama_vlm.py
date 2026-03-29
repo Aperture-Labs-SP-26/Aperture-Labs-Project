@@ -36,16 +36,9 @@ def _parse_pass_fail(response: str) -> str:
 
 
 def _severity_from_line(line: str) -> Optional[str]:
-    """Return 'fod' if line is a FOD section header (new or legacy format)."""
+    """Return 'fod' if line is the FOD DETECTED section header."""
     lower = line.lower()
     if "fod detected" in lower and ":" in lower:
-        return "fod"
-    # Legacy format support for responses generated before the format change
-    if "critical" in lower and ("failure" in lower or ":" in lower):
-        return "fod"
-    if "major" in lower and ("issue" in lower or ":" in lower):
-        return "fod"
-    if "minor" in lower and ("issue" in lower or ":" in lower):
         return "fod"
     return None
 
@@ -239,7 +232,7 @@ class OllamaVLM:
                 defects = [
                     DefectSchema(
                         id="DEF-001",
-                        severity="major",
+                        severity="fod",
                         description="Inspection failed. See full analysis above for details.",
                     )
                 ]
@@ -262,7 +255,7 @@ class OllamaVLM:
                 defects=[
                     DefectSchema(
                         id="DEF-001",
-                        severity="major",
+                        severity="fod",
                         description=error + ". Detection request failed.",
                     )
                 ],

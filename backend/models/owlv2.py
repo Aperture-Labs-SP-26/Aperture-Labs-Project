@@ -16,9 +16,7 @@ from PIL import Image, ImageDraw
 logger = logging.getLogger(__name__)
 
 _SEVERITY_COLORS: dict[str, tuple[int, int, int]] = {
-    "critical": (220, 38, 38),   # red
-    "major": (234, 88, 12),      # orange
-    "minor": (202, 138, 4),      # yellow
+    "fod": (220, 38, 38),   # red — all FOD is a failure
 }
 _DEFAULT_COLOR: tuple[int, int, int] = (59, 130, 246)  # blue
 

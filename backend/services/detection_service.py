@@ -52,7 +52,7 @@ def _build_anomalies(db: Session, submission: Submission, result) -> int:
                 submission_id=submission.id,
                 label=defect.id or "foreign_object",
                 description=defect.description[:500] if defect.description else None,
-                severity="high",  # Any FOD is a failure — no severity tiers
+                severity="fod",  # Any FOD is a failure — no severity tiers
                 confidence=0.90,
             ))
         return len(defects)
@@ -62,7 +62,7 @@ def _build_anomalies(db: Session, submission: Submission, result) -> int:
         submission_id=submission.id,
         label="foreign_object",
         description=(result.response[:500] if result.response else "FOD detected"),
-        severity="high",
+        severity="fod",
         confidence=0.90,
     ))
     return 1

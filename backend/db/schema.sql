@@ -98,7 +98,7 @@ CREATE TABLE anomalies (
         ON DELETE CASCADE,
 
     CONSTRAINT anomalies_severity_check
-        CHECK (severity IS NULL OR severity IN ('low', 'med', 'high')),
+        CHECK (severity IS NULL OR severity IN ('fod')),
 
     CONSTRAINT anomalies_confidence_check
         CHECK (confidence IS NULL OR (confidence >= 0 AND confidence <= 1))
