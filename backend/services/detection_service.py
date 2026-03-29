@@ -110,7 +110,7 @@ def _run_detection(submission_id: uuid.UUID, project_id: uuid.UUID, image_object
         result = get_model().detect_fod(image, None, spec_text)
 
         annotated_image: str | None = None
-        if result.defects:
+        if result.pass_fail == "fail" and result.defects:
             try:
                 wait_for_owlv2()
                 queries, severity_map = build_queries_and_severity_map(result.defects)
