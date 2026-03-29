@@ -218,6 +218,39 @@ class TestOWLv2DetectorLoad:
             with pytest.raises((RuntimeError, ImportError)):
                 detector._load()
 
+    def _load_with_device_flags(self, cuda: bool, mps: bool):
+        """Helper: run _load() with device availability mocked, model download stubbed."""
+        detector = OWLv2Detector()
+        mock_model = MagicMock()
+        mock_proc = MagicMock()
+        with (
+            patch("torch.cuda.is_available", return_value=cuda),
+            patch("torch.backends.mps.is_available", return_value=mps),
+            patch("transformers.Owlv2Processor.from_pretrained", return_value=mock_proc),
+            patch("transformers.Owlv2ForObjectDetection.from_pretrained", return_value=mock_model),
+        ):
+            detector._load()
+        return detector, mock_model, mock_proc
+
+    def test_selects_cuda_device_when_available(self):
+        detector, mock_model, _ = self._load_with_device_flags(cuda=True, mps=False)
+        assert "cuda" in str(detector._device)
+
+    def test_selects_mps_device_when_cuda_unavailable(self):
+        detector, _, _ = self._load_with_device_flags(cuda=False, mps=True)
+        assert "mps" in str(detector._device)
+
+    def test_model_loading_calls_to_and_eval(self):
+        """Lines 56-59: from_pretrained, .to(), .eval() must be called during load."""
+        _, mock_model, mock_proc = self._load_with_device_flags(cuda=False, mps=False)
+        mock_model.to.assert_called_once()
+        mock_model.eval.assert_called_once()
+
+    def test_model_and_processor_set_after_load(self):
+        detector, mock_model, mock_proc = self._load_with_device_flags(cuda=False, mps=False)
+        assert detector._model is mock_model
+        assert detector._processor is mock_proc
+
 
 class TestOWLv2DetectorAnnotate:
     """torch is imported locally inside annotate, so we patch torch directly."""
