@@ -19,7 +19,100 @@ ollama pull qwen2.5vl:7b
 ollama serve
 ```
 
-#### 3. Setup backend (first time only)
+Or directly:
+
+```bash
+chmod +x run.sh && ./run.sh
+```
+
+**Stop everything:** `make kill` — stops backend, frontend, Ollama, and Docker (keeps DB).
+**Stop everything + reset DB:** `make kill-reset` — same as above and removes Docker volumes (fresh DB on next `make run`).
+
+This will:
+
+1. Start Postgres and MinIO with `docker compose up -d`
+2. Create `backend/.env` from defaults if missing (ports 5434, 9002)
+3. Create a Python venv and install backend deps, then start the API at **http://127.0.0.1:8000**
+4. Run `npm install` if needed and start the frontend at **http://localhost:3998**
+
+**Log in:** `test@example.com` / `test`
+(Seed users: alice/bob/carol use password `password123`, test@example.com uses `test`. Passwords are stored in plain text; do not commit `backend/.env`—use `.env.example` for documentation.)
+
+Press **Ctrl+C** to stop the backend and frontend; Docker keeps running. To stop Docker: `make dev-down` or `docker compose down`.
+
+**If `make run` or `./run.sh` fails** (e.g. on Windows, or a step errors), use the [step-by-step instructions](#step-by-step-if-one-command-doesnt-work) below.
+
+**Login shows "Cannot reach the backend" or connection timeout?** The frontend calls `http://localhost:8000`. Start the full app with `make run` (starts Docker + backend + frontend), or start the backend first in one terminal (`cd backend && source venv/bin/activate && uvicorn main:app --reload --host 127.0.0.1 --port 8000`) then the frontend in another.
+
+---
+
+## Optional: Ollama (real VLM detection)
+
+For live FOD detection instead of mock results, install Ollama and pull the default VLM.
+
+### Install Ollama
+
+- **macOS:** `brew install ollama` or download from [ollama.com](https://ollama.com)
+- **Linux:** `curl -fsSL https://ollama.com/install.sh | sh`
+- **Windows:** Download the installer from [ollama.com](https://ollama.com)
+
+### Pull the VLM model
+
+```bash
+ollama pull qwen2.5vl:7b
+```
+
+This downloads ~5 GB. To use a different model, set `OLLAMA_VLM_MODEL` in your environment (e.g. `export OLLAMA_VLM_MODEL=qwen2.5vl:72b`).
+
+### Usage
+
+`./run.sh` (and `make run`) will automatically start Ollama and pull `qwen2.5vl:7b` if Ollama is installed. If it's not installed, the app falls back to mock detection responses.
+
+To run Ollama manually:
+
+```bash
+ollama serve
+```
+
+The backend connects to Ollama at `http://localhost:11434` by default (override with `OLLAMA_HOST`).
+
+---
+
+## Step-by-step (if one command doesn't work)
+
+Use these steps if `make run` fails or you're on Windows (where `run.sh` is not supported). Run each step in order; use **two terminals** for backend and frontend.
+
+### 1. Environment
+
+Ensure `backend/.env` exists. If not, copy from example or create with:
+
+```bash
+# backend/.env (do not commit; use .env.example for docs)
+DATABASE_URL=postgresql://user:pass@127.0.0.1:5434/appdb
+MINIO_ENDPOINT=localhost:9002
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin
+MINIO_BUCKET_DESIGNS=designs
+MINIO_BUCKET_IMAGES=images
+MINIO_USE_SSL=false
+DETECTION_WEBHOOK_SECRET=dev-webhook-secret
+```
+
+(Ports 5434 and 9002 match `docker-compose.yml`.)
+
+### 2. Docker
+
+From the project root, start Postgres and MinIO:
+
+```bash
+docker compose up -d
+```
+
+Optional: wait a few seconds, then check containers are up: `docker ps`.
+
+### 3. Backend
+
+In a **first terminal**, from the project root:
 
 ```bash
 cd backend
