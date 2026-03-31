@@ -41,7 +41,7 @@ class OWLv2Detector:
             return
         try:
             import torch  # noqa: F401
-            from transformers import Owlv2ForObjectDetection, Owlv2Processor  # noqa: F401
+            from transformers import Owlv2ForObjectDetection, Owlv2ImageProcessor, Owlv2Processor  # noqa: F401
         except ImportError as e:
             raise RuntimeError(
                 "OWLv2 requires 'transformers' and 'torch'. "
@@ -49,7 +49,7 @@ class OWLv2Detector:
             ) from e
 
         import torch
-        from transformers import Owlv2ForObjectDetection, Owlv2Processor
+        from transformers import Owlv2ForObjectDetection, Owlv2ImageProcessor, Owlv2Processor
 
         if torch.cuda.is_available():
             self._device = torch.device("cuda")
@@ -58,7 +58,10 @@ class OWLv2Detector:
         else:
             self._device = torch.device("cpu")
         logger.info("Loading OWLv2 model: %s on %s (first-run download may take a moment)", self.model_id, self._device)
-        self._processor = Owlv2Processor.from_pretrained(self.model_id)
+        # Load image processor directly to bypass AutoImageProcessor auto-detection,
+        # which fails on newer transformers when preprocessor_config.json lacks image_processor_type.
+        image_processor = Owlv2ImageProcessor.from_pretrained(self.model_id)
+        self._processor = Owlv2Processor.from_pretrained(self.model_id, image_processor=image_processor)
         self._model = Owlv2ForObjectDetection.from_pretrained(self.model_id)
         self._model.to(self._device)
         self._model.eval()
